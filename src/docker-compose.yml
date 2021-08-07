@@ -1,0 +1,53 @@
+#https://docs.docker.com/compose/extends/
+version: '3'
+services:
+  nginx:
+    image: nginx:1.15-alpine
+    depends_on:
+      - sbaweb
+    restart: unless-stopped
+    volumes:
+      - ./nginx/data/nginx:/etc/nginx/conf.d
+      - ./nginx/data/certbot/conf:/etc/letsencrypt
+      - ./nginx/data/certbot/www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+      - "44343:44343"
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./nginx/data/certbot/conf:/etc/letsencrypt
+      - ./nginx/data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+  sbaweb:
+    build: ./simplebibleapp
+    depends_on:
+      - sbaredis
+      - sbamongodb
+    ports:
+      - '5000:5000'
+    environment:
+      - REDIS_SERVERNAME=sbaredis
+      - MONGODB_SERVERNAME=sbamongodb
+      - MONGODB_USER=${MONGODB_USER}
+      - MONGODB_DATABASE=${MONGODB_DATABASE}
+      - MONGODB_PASS=${MONGODB_PASS}
+  sbaredis:
+    image: "redis:alpine"
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+  sbamongodb:
+    image: "mongo"
+    ports:
+      - '27017:27017'
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASS}
+      - MONGO_INITDB_DATABASE=${MONGODB_DATABASE}
+    volumes:
+      - './mnt/sbadata:/data/db'

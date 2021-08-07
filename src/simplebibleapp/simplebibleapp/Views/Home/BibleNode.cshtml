@@ -1,0 +1,115 @@
+﻿@using System.Diagnostics
+@using Microsoft.AspNetCore.Html
+@using Microsoft.CodeAnalysis.CSharp
+@using simplebibleapp.xmlbible
+@model simplebibleapp.Models.BibleChapterReading
+
+@{
+    Func<BeginVerseNode, IHtmlContent> renderBeginNode =
+        @<em class="verse-number" id="vs-@item.Verse">
+    @item.Verse.
+        <span class="heart">
+            <input class="heartcheck" id="toggle-heart-@string.Join('-',item.SId.Split('.'))" type="checkbox" ng-model="heartedVerses['@item.SId']" ng-change="heartClick('@item.SId')" />
+            <label class="heartchecklbl" for="toggle-heart-@string.Join('-',item.SId.Split('.'))">❤&#xFE0E;</label>
+        </span>
+    </em>;
+
+Func<EndVerseNode, IHtmlContent> renderEndNode = @<br/>;
+
+Func<WordNode, IHtmlContent> renderWordNode =
+    @<em class="word-ref" ng-click="getref('@item.Lemma')"
+    ng-class="{selectedLemma:isSelectedLemma('@item.Lemma')}">
+    @if (item.SubNodes.Any())
+    {
+        @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })
+    }
+    else
+    {
+        foreach (var refer in item.Lemma.Split(' '))
+        {
+            <span class="strongsref">@refer.Split(':')[1]</span>
+        }
+    }
+</em>;
+
+Func<InscriptionNode, IHtmlContent> renderInscriptionNode =
+@<em class="inscription">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</em>;
+
+Func<TitleNode, IHtmlContent> renderTitleNode =
+@<h4>@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</h4>;
+
+Func<ForeignNode, IHtmlContent> renderForeignNode =
+@<em>@item.N&nbsp;~&nbsp;@item.Text</em>;
+
+Func<QNode, IHtmlContent> renderQNode =
+@<em class="words-of">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</em>;
+
+Func<SegNode, IHtmlContent> renderSeg =
+@<em class="segment">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</em>;
+
+Func<string, IHtmlContent> renderStrong = @<strong>@item</strong>;
+
+Func<MilestoneNode, IHtmlContent> renderMilestone = @<em>@item.Marker</em>;
+
+Func<string, IHtmlContent> renderTransChange = @<span>@item</span>;
+
+Func<string, IHtmlContent> renderNote = @<em class="bible-note">@item</em>;
+
+}
+
+@foreach (INode node in Model.BibleNode.SubNodes)
+{
+    switch (node.XmlNodeType)
+    {
+        case NodeType.BeginVerse:
+            var beginNode = node as BeginVerseNode;
+            @renderBeginNode(beginNode)
+            break;
+        case NodeType.EndVerse:
+            var endVerseNode = node as EndVerseNode;
+            @renderEndNode(endVerseNode)
+            break;
+        case NodeType.Word:
+            var wordNode = node as WordNode;
+            @renderWordNode(wordNode)
+            break;
+        case NodeType.Inscription:
+            var inscriptionNode = node as InscriptionNode;
+            @renderInscriptionNode(inscriptionNode)
+            break;
+        case NodeType.Title:
+            var titleNode = node as TitleNode;
+            @renderTitleNode(titleNode)
+            break;
+        case NodeType.Foreign:
+            var foreignNode = node as ForeignNode;
+            @renderForeignNode(foreignNode)
+            break;
+        case NodeType.Q:
+            var qNode = node as QNode;
+            @renderQNode(qNode)
+            break;
+        case NodeType.Text:
+            @node.Text
+            break;
+        case NodeType.Seg:
+            var segNode = node as SegNode;
+            @renderSeg(segNode)
+            break;
+        case NodeType.DivineName:
+            @renderStrong(node.Text);
+            break;
+        case NodeType.Milestone:
+            var milestoneNode = node as MilestoneNode;
+            @renderMilestone(milestoneNode)
+            break;
+        case NodeType.TransChange:
+            @renderTransChange(node.Text);
+            break;
+        case NodeType.Note:
+            @renderNote(node.Text)
+            break;
+        default:
+            throw new ApplicationException("no node type found");
+    }
+}

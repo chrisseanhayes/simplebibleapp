@@ -1,0 +1,50 @@
+﻿@using simplebibleapp.xmlbible
+@model ReadViewModel
+@{
+    ViewBag.Title = Model.ChapterHeading;
+}
+<div ng-app="readApp" ng-controller="readController" ng-init="fullbible=false">
+    <h2>@Model.ChapterHeading</h2>
+    <div>
+        <div class="row">
+            <div class="col-md-8 col-lg-8 col-sm-8">
+                <div class="pull-right">
+                    @if (Model.HasPreviousChapter)
+                    {
+                        <a class="btn btn-xs btn-info" href="@Url.Action("Read", new {bookAbbr = Model.PreviousChapterBookAbbr, chapter = Model.PreviousChapterNumber})">Prev</a>
+                    }
+                    @if (Model.HasNextChapter)
+                    {
+                        <a class="btn btn-xs btn-info" href="@Url.Action("Read", new {bookAbbr = Model.NextChapterBookAbbr, chapter = Model.NextChapterNumber})">Next</a>
+                    }
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-4 col-sm-4">
+                <button class="pull-right btn btn-xs btn-info" ng-click="fullbible=!fullbible">dictionary</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bible-content" class="row bible-read" ng-init="init('@Model.BookAbbr',@Model.Chapter)">
+        <div id="bible-left" class="bible-text" ng-class="{'fullbible':fullbible,'dictview':!fullbible}">
+            <div class="bible-text">
+                @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = Model.BibleNode, ChapterLikes = Model.ChapterLikes })
+            </div>
+
+        </div>
+        <div id="bible-right" class="col-lg-4 columns" ng-hide="fullbible" data-sticky-container>
+            <div id="defs" class="sticky bible-def-sticky" data-sticky data-anchor="left"></div>
+            <div><i ng-show="defload" class="fas fa-spinner fa-spin"></i></div>
+            <div>
+                <h4>Word usage:</h4>
+                <div class="usage-ref" ng-repeat="verse in wordRefs">
+                    <span>{{verse.chapterAbbr}}</span>
+                    <span>{{verse.chapterNumber}}</span>:
+                    <span>{{verse.verseNumber}}</span>
+                    &quot;<span>{{decode(verse.verseXmlText)}}</span>&quot;
+                    <hr />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

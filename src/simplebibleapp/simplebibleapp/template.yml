@@ -1,0 +1,20 @@
+version: '3'
+services:
+  sbaweb:
+    build: .
+    environment:
+     - MONGODB_PASS=${mongodbpassword}
+    ports:
+     - "5005:80"
+    volumes:
+     - /mnt:/mnt
+  sbaredis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+  sbamongodb:
+    image: "tutum/mongodb"
+    environment:
+      - MONGODB_PASS=${mongodbpassword}
+    ports:
+      - "45137:27017"

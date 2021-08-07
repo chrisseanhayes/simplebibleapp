@@ -1,0 +1,6 @@
+﻿@model simplebibleapp.xmldictionary.StrongsRefNode
+@{
+    var alsosee = "alsosee('" + Model.Language + "','" + Model.Strongs + "')";
+}
+
+<span class="also-see" ng-click="@alsosee">@Model.Language: @Model.Strongs</span>

@@ -1,0 +1,8 @@
+﻿@model simplebibleapp.xmldictionary.IGreekDefinitionNode
+
+<p>
+    <label>Derivation:</label> @if (Model.SubNodes.Any())
+    {
+    Html.RenderPartial("GreekDefinition", new GreekDefViewModel{Nodes= Model.SubNodes, IsTopElement = false});
+    }
+</p>

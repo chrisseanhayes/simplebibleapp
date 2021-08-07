@@ -1,0 +1,11 @@
+version: '3'
+services:
+  web:
+    volumes:
+     - /mnt:/mnt
+  sbaredis:
+    volumes:
+      - /mnt/redis/persist:/data
+  sbamongodb:
+    volumes:
+      - /mnt/data/simplebibleapp:/data/db

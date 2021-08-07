@@ -1,0 +1,55 @@
+﻿@using simplebibleapp.xmldictionary
+@model GreekDefViewModel
+    @if (Model.Nodes.Any())
+    {
+<div class="greek-def">
+    @if (Model.IsTopElement)
+    {
+        <i ng-click="closedef($event, '@Model.StrongNumber')" class="fa fa-times-circle defclose"></i>
+    }
+    @foreach (var sibling in Model.Nodes)
+    {
+        try
+        {
+            switch (sibling.Type)
+            {
+                case GreekDefinitionNodeType.Greek:
+                    Html.RenderPartial("Greek", sibling as GreekNode);
+                    break;
+                case GreekDefinitionNodeType.StrongDerivation:
+                    Html.RenderPartial("StrongDerivation", sibling);
+                    break;
+                case GreekDefinitionNodeType.KjvDef:
+                    Html.RenderPartial("KjvDefinition", sibling);
+                    break;
+                case GreekDefinitionNodeType.Latin:
+                    <i>@sibling.Text</i>
+                    break;
+                case GreekDefinitionNodeType.Pronunciation:
+                    Html.RenderPartial("Pronunciation", sibling as PronunciationNode);
+                    break;
+                case GreekDefinitionNodeType.See:
+                    Html.RenderPartial("See", sibling as SeeNode);
+                    break;
+                case GreekDefinitionNodeType.Strongs:
+                    <label>@sibling.Text</label>
+                    break;
+                case GreekDefinitionNodeType.StrongsRef:
+                    Html.RenderPartial("StrongsRef", sibling as StrongsRefNode);
+                    break;
+                case GreekDefinitionNodeType.StrongsDef:
+                    Html.RenderPartial("StrongsDef", sibling);
+                    break;
+                case GreekDefinitionNodeType.Text:
+                    <span>@sibling.Text</span>
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+</div>
+        <hr/>
+    }

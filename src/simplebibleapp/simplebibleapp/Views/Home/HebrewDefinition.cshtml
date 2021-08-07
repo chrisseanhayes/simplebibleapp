@@ -1,0 +1,8 @@
+﻿@model simplebibleapp.xmldictionary.IHebrewDefinitionNode
+
+<div>
+    @foreach (var sibling in Model.SubNodes)
+    {
+    @sibling.Text;
+    }
+</div>

@@ -1,0 +1,317 @@
+﻿html, body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+}
+
+/* Set padding to keep content from hitting the edges */
+.body-content {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+/* Override the default bootstrap behavior where horizontal description lists 
+   will truncate terms that are too long to fit in the left column 
+*/
+.dl-horizontal dt {
+    white-space: normal;
+}
+
+/* Set width on the form input elements since they're 100% wide by default */
+input,
+select,
+textarea {
+    max-width: 280px;
+}
+
+.checked {
+    font-size: .5em;
+    color: green;
+}
+
+.btn-bible-book {
+    padding: .5em;
+}
+
+.selectable-verse {
+    font-size: 1em;
+    background: #cccccc;
+    border-radius: 0.8em;
+    -moz-border-radius: 0.8em;
+    -webkit-border-radius: 0.8em;
+    color: #ffffff;
+    display: inline-block;
+    font-weight: bold;
+    line-height: 1.6em;
+    margin-right: 2.5px;
+    margin-bottom: 5px;
+    text-align: center;
+    width: 1.6em;
+}
+
+.selectable-verse-lg {
+    font-size: .6em;
+    background: #cccccc;
+    border-radius: 2.2em;
+    -moz-border-radius: 2.2em;
+    -webkit-border-radius: 2.2em;
+    color: #ffffff;
+    display: inline-block;
+    font-weight: bold;
+    line-height: 2.6em;
+    margin-right: 2.25px;
+    margin-bottom: 5px;
+    text-align: center;
+    width: 2.7em;
+}
+
+    a.selectable-verse:hover, .selectable-verse-lg:hover {
+        text-decoration: none;
+        background-color: green;
+        color: white;
+        cursor: pointer;
+        cursor: hand;
+    }
+
+.btn-default, .btn-primary, .btn-success, .btn-info, .btn-warning, .btn-danger {
+    border-radius: 2em;
+}
+
+.word-ref, .also-see {
+    background: aliceblue;
+    cursor: pointer;
+}
+
+    .word-ref:hover, .also-see:hover {
+        border-bottom: 1px dotted #000;
+        text-decoration: none;
+    }
+
+.words-of {
+    color: red;
+}
+
+.bible-note {
+    font-size: .65em;
+    color: silver;
+}
+
+.bible-def-sticky {
+    padding-top: 40px;
+    margin-top: -40px;
+}
+
+
+.bible-read {
+    font-size: 1.5em;
+}
+
+    .bible-read label {
+        font-size: 1em;
+    }
+
+    .bible-read strong {
+        font-variant: small-caps;
+    }
+
+.selectedLemma {
+    background: yellow;
+}
+
+.inscription {
+    font-family: 'Century Gothic', 'HelveticaNeueLT Pro 45 Lt', sans-serif;
+    font-weight: bold;
+    color: #3B5957;
+    background-color: #5D8D89;
+    text-shadow: 0px 1px 0px rgba(255, 255, 255, .5);
+}
+footer{ clear: both;}
+.verse-number{ color: silver; font-size: .5em; font-weight: normal; vertical-align: super;}
+em {
+    font-style: normal;
+}
+
+span.heart {
+    display: inline-block;
+    justify-content: center;
+    text-align: center;
+    margin: 0;
+    height: 1.25em;
+    width: 1.25em;
+}
+
+.heartcheck {
+    position: absolute;
+    left: -100vw;
+}
+.heartcheck:checked + label {
+    color: #e2264d;
+    will-change: font-size;
+    animation: heart 1s cubic-bezier(0.17, 0.89, 0.32, 1.49);
+}
+
+.heartchecklbl {
+    align-self: center;
+    color: #aab8c2;
+    font-size: 2em;
+    cursor: pointer;
+}
+#bible-content {
+    height: 85%;
+}
+.fullbible {
+    width: 100%;
+    overflow: auto;
+}
+.dictview {
+    width: 65%;
+    overflow: auto;
+}
+#bible-left {
+    float: left;
+    height: 88vh;
+    overflow-y: scroll;
+    box-sizing: border-box;
+    padding: 0.5em;
+    padding-left: 10%;
+    margin-bottom: 12vh
+}
+#bible-right {
+    float: left;
+    width: 35%;
+    height: 88vh;
+    overflow-y: scroll;
+    box-sizing: border-box;
+    padding: 0.5em;
+    padding-right: 10%;
+    margin-bottom:12vh;
+}
+#scroll-content {
+    overflow: auto;
+    height: 90%;
+}
+.strongsref {
+    vertical-align: super;
+    font-size: .5em;
+}
+.greek-def {
+    font-size: .75em;
+    line-height: 1.25em;
+}
+.defclose {
+    color: gray;
+}
+.defclose:hover {
+    cursor: pointer;
+}
+
+.usage-ref {
+    font-size: .75em;
+}
+
+@keyframes heart {
+    0%, 15% {
+        font-size: 0;
+    }
+}
+
+
+@keyframes heart {
+    0%, 15% { font-size: 0; }
+}
+@media (min-width:1200px) {
+    .auto-clear .col-lg-1:nth-child(12n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-lg-2:nth-child(6n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-lg-3:nth-child(4n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-lg-4:nth-child(3n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-lg-6:nth-child(odd) {
+        clear: left;
+    }
+}
+
+@media (min-width:992px) and (max-width:1199px) {
+    .auto-clear .col-md-1:nth-child(12n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-md-2:nth-child(6n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-md-3:nth-child(4n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-md-4:nth-child(3n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-md-6:nth-child(odd) {
+        clear: left;
+    }
+}
+
+@media (min-width:768px) and (max-width:991px) {
+    .auto-clear .col-sm-1:nth-child(12n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-sm-2:nth-child(6n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-sm-3:nth-child(4n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-sm-4:nth-child(3n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-sm-6:nth-child(odd) {
+        clear: left;
+    }
+}
+
+@media (max-width:767px) {
+    .selectable-verse {
+        font-size: 1.5em;
+    }
+
+    .selectable-verse-lg {
+        font-size: .875em;
+    }
+
+    .auto-clear .col-xs-1:nth-child(12n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-xs-2:nth-child(6n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-xs-3:nth-child(4n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-xs-4:nth-child(3n+1) {
+        clear: left;
+    }
+
+    .auto-clear .col-xs-6:nth-child(odd) {
+        clear: left;
+    }
+
+}

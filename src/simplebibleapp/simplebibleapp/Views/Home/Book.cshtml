@@ -1,0 +1,37 @@
+﻿@model simplebibleapp.xmlbiblerepository.BookLanding
+@{
+    ViewBag.Title = "Book";
+}
+    <div id="scroll-content">
+        <h1 class="text-center">@Model.BookName</h1>
+        <div class="row auto-clear">
+            @foreach (var chapter in Model.SelectableVerses.GroupBy(v => v.Chapter))
+            {
+                string responsivecolclass = "col-xs-12 col-sm-6 col-md-4 col-lg-3";
+                var firstverse = chapter.First();
+                <div class="panel-group @responsivecolclass">
+                    <div class="panel panel-primary">
+                        <div class="text-center panel-heading">
+                            <a class="btn btn-primary"
+                               href="@Url.Action("Read",new{bookAbbr=firstverse.BookAbbreviation, chapter=firstverse.Chapter})">Chapter @chapter.Key</a>
+                            <a class="btn btn-sm btn-primary glyphicon glyphicon-chevron-down pull-right" data-toggle="collapse"
+                               href="#chapter-@chapter.Key"></a>
+                        </div>
+                        <div id="chapter-@chapter.Key" class="panel-collapse collapse">
+                            <div class="panel-body">
+                                @foreach (var verse in chapter)
+                                {
+                                    var selectclass = "selectable-verse";
+                                    if (verse.Verse > 99)
+                                    {
+                                        selectclass = "selectable-verse-lg";
+                                    }
+                                    <a class="@selectclass" href="@Url.Action("Read",new{bookAbbr=verse.BookAbbreviation, chapter=verse.Chapter})#vs-@verse.Verse">@verse.Verse</a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>

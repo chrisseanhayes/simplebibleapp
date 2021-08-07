@@ -1,0 +1,33 @@
+﻿@model IEnumerable<simplebibleapp.xmlbiblerepository.BookListItem>
+    @{
+    ViewBag.Title = "Index";
+    }
+<div id="scroll-content">
+    <h2>Index</h2>
+    <div class="panel panel-primary">
+        @foreach (var testament in Model.GroupBy(x => x.Testament))
+        {
+            <div class="panel-heading">
+                <h3 class="panel-title text-center">@testament.Key Testament</h3>
+            </div>
+            <div class="panel-body">
+                @foreach (var book in testament)
+                {
+                    <div class="col-md-3 text-center">
+                        <a class="btn btn-lg btn-default btn-block btn-bible-book" href="@Url.Action("Book", new {id=book.SearchAbbr})">
+                            @if (book.IsChecked)
+                            {
+                                <span class="fa-stack pull-left checked">
+                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                    <i class="fa fa-check fa-stack-1x fa-inverse"></i>
+                                </span>
+                            }
+                            <span>@book.BookName</span>
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+</div>
