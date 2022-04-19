@@ -7,9 +7,9 @@ namespace simplebibleapp.Data.Bible
 {
     public class XmlPathResolver : IXmlPathResolver
     {
-        private readonly IHostingEnvironment hostingEnvironment;
+        private readonly IWebHostEnvironment hostingEnvironment;
 
-        public XmlPathResolver(IHostingEnvironment hostingEnvironment)
+        public XmlPathResolver(IWebHostEnvironment hostingEnvironment)
         {
             this.hostingEnvironment = hostingEnvironment;
         }

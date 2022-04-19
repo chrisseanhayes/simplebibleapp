@@ -40,10 +40,10 @@ namespace simplebibleapp
                     }
                     NLogBuilder.ConfigureNLog(logConfigPath);
                 })
-                .ConfigureLogging(logging =>
+                .ConfigureLogging((hostingContext, logging) =>
                 {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+                    logging.AddConsole();
+                    logging.AddDebug();
                 })
                 .UseLamar()
                 .UseNLog();
