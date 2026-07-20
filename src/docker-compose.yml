@@ -29,7 +29,7 @@ services:
       - sbaredis
       - sbamongodb
     ports:
-      - '5000:5000'
+      - '5001:8080'
     environment:
       - REDIS_SERVERNAME=sbaredis
       - MONGODB_SERVERNAME=sbamongodb
