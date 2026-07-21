@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -54,24 +54,96 @@ namespace simplebibleapp.xmlbible
     }
     public class ChapterBuilder : IChapterBuilder
     {
+        private class ThreadState
+        {
+            public INodeState NodeState { get; set; } = new NullState();
+            public NodeBase CurrentNode { get; set; } = new ChapterNode();
+            public bool IsLive { get; set; }
+            public bool SearchComplete { get; set; }
+            public string SearchString { get; set; }
+            public bool HasPrevChapter { get; set; }
+            public string PrevBookAbbr { get; set; }
+            public int PrevChapterNumber { get; set; }
+            public bool HasNextChapter { get; set; }
+            public string NextBookAbbr { get; set; }
+            public int NextChapterNumber { get; set; }
+        }
+
         #region private fields
         private readonly IEnumerable<IState> _states;
         private readonly IXmlPathResolver _pathResolver;
-        private INodeState _nodeState;
-        private NodeBase _currentNode;
-        bool IsLive { get; set; }
-        bool SearchComplete { get; set; }
-        string SearchString { get; set; }
+        private readonly System.Threading.ThreadLocal<ThreadState> _threadState =
+            new System.Threading.ThreadLocal<ThreadState>(() => new ThreadState());
+
+        private INodeState _nodeState
+        {
+            get => _threadState.Value.NodeState;
+            set => _threadState.Value.NodeState = value;
+        }
+
+        private NodeBase _currentNode
+        {
+            get => _threadState.Value.CurrentNode;
+            set => _threadState.Value.CurrentNode = value;
+        }
+
+        private bool IsLive
+        {
+            get => _threadState.Value.IsLive;
+            set => _threadState.Value.IsLive = value;
+        }
+
+        private bool SearchComplete
+        {
+            get => _threadState.Value.SearchComplete;
+            set => _threadState.Value.SearchComplete = value;
+        }
+
+        private string SearchString
+        {
+            get => _threadState.Value.SearchString;
+            set => _threadState.Value.SearchString = value;
+        }
         #endregion
 
         #region public readonly properties
         public NodeBase CurrentNode => _currentNode;
-        public bool HasPrevChapter { get; private set; }
-        public string PrevBookAbbr { get; private set; }
-        public int PrevChapterNumber { get; private set; }
-        public bool HasNextChapter { get; private set; }
-        public string NextBookAbbr { get; private set; }
-        public int NextChapterNumber { get; private set; }
+
+        public bool HasPrevChapter
+        {
+            get => _threadState.Value.HasPrevChapter;
+            private set => _threadState.Value.HasPrevChapter = value;
+        }
+
+        public string PrevBookAbbr
+        {
+            get => _threadState.Value.PrevBookAbbr;
+            private set => _threadState.Value.PrevBookAbbr = value;
+        }
+
+        public int PrevChapterNumber
+        {
+            get => _threadState.Value.PrevChapterNumber;
+            private set => _threadState.Value.PrevChapterNumber = value;
+        }
+
+        public bool HasNextChapter
+        {
+            get => _threadState.Value.HasNextChapter;
+            private set => _threadState.Value.HasNextChapter = value;
+        }
+
+        public string NextBookAbbr
+        {
+            get => _threadState.Value.NextBookAbbr;
+            private set => _threadState.Value.NextBookAbbr = value;
+        }
+
+        public int NextChapterNumber
+        {
+            get => _threadState.Value.NextChapterNumber;
+            private set => _threadState.Value.NextChapterNumber = value;
+        }
         #endregion
 
         public ChapterBuilder(IEnumerable<IState> states, IXmlPathResolver pathResolver)
@@ -79,7 +151,6 @@ namespace simplebibleapp.xmlbible
             _states = states;
             _pathResolver = pathResolver;
             ResetSearch();
-
         }
 
         public BuilderState GetChapter(string bookAbbreviation, int chapter)

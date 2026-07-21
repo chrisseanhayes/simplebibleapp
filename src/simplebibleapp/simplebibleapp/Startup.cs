@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using NLog.Web;
 using NLog.Web.AspNetCore;
-using simplebibleapp.Data.Hearts;
 using simplebibleapp.xmlbible;
 using simplebibleapp.xmlbible.search;
 using simplebibleapp.xmlbiblerepository;
@@ -80,15 +79,21 @@ namespace simplebibleapp
             });
             registry.For<IChapterBuilderFactory>().Add<ChapterBuilderFactory>();
             registry.For<IWordCountBuilderFactory>().Add<WordCountBuilderFactory>();
-            registry.For<IHeartRepository>().Add<MongoHeartRepository>();
-            registry.For<IMongoDbConfigSource>().Add<EnvironmentMongoDbConfigSource>();
-            registry.For<IVerseSearch>().Use(s => SearchHelps.GetVerseSearch(Path.Combine(s.GetInstance<IXmlPathResolver>().GetPath(), "kjvfull.xml")));
+            registry.For<IVerseSearch>().Use<SqliteVerseSearch>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
         {
             loggerFactory.AddNLog();
+
+            // Auto-create SQLite database if it does not exist
+            using (var scope = app.ApplicationServices.CreateScope())
+            {
+                var pathResolver = scope.ServiceProvider.GetRequiredService<IXmlPathResolver>();
+                var states = scope.ServiceProvider.GetServices<IState>();
+                SqliteDbInitializer.EnsureDbCreated(pathResolver.GetPath(), states);
+            }
 
             var fordwardedHeaderOptions = new ForwardedHeadersOptions
             {

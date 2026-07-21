@@ -1,37 +1,61 @@
-﻿@model simplebibleapp.xmlbiblerepository.BookLanding
+@model simplebibleapp.xmlbiblerepository.BookLanding
 @{
-    ViewBag.Title = "Book";
+    ViewBag.Title = Model.BookName;
 }
-    <div id="scroll-content">
-        <h1 class="text-center">@Model.BookName</h1>
-        <div class="row auto-clear">
-            @foreach (var chapter in Model.SelectableVerses.GroupBy(v => v.Chapter))
-            {
-                string responsivecolclass = "col-xs-12 col-sm-6 col-md-4 col-lg-3";
-                var firstverse = chapter.First();
-                <div class="panel-group @responsivecolclass">
-                    <div class="panel panel-primary">
-                        <div class="text-center panel-heading">
-                            <a class="btn btn-primary"
-                               href="@Url.Action("Read",new{bookAbbr=firstverse.BookAbbreviation, chapter=firstverse.Chapter})">Chapter @chapter.Key</a>
-                            <a class="btn btn-sm btn-primary glyphicon glyphicon-chevron-down pull-right" data-toggle="collapse"
-                               href="#chapter-@chapter.Key"></a>
-                        </div>
-                        <div id="chapter-@chapter.Key" class="panel-collapse collapse">
-                            <div class="panel-body">
-                                @foreach (var verse in chapter)
-                                {
-                                    var selectclass = "selectable-verse";
-                                    if (verse.Verse > 99)
-                                    {
-                                        selectclass = "selectable-verse-lg";
-                                    }
-                                    <a class="@selectclass" href="@Url.Action("Read",new{bookAbbr=verse.BookAbbreviation, chapter=verse.Chapter})#vs-@verse.Verse">@verse.Verse</a>
-                                }
-                            </div>
-                        </div>
+
+<div class="bible-page-container" x-data="{ activeChapter: null }">
+    <div class="bible-nav-container">
+        <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">
+            <ol class="breadcrumb-list">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-button home-button" href="/">📖 Books</a>
+                </li>
+                <li class="breadcrumb-separator" aria-hidden="true">›</li>
+                <li class="breadcrumb-item">
+                    <span class="breadcrumb-button current">@Model.BookName</span>
+                </li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="book-header-section">
+        <h1 class="book-display-title">@Model.BookName</h1>
+        <p class="book-subtitle">Select a chapter to start reading, or expand a chapter to jump to a specific verse.</p>
+    </div>
+
+    <div class="chapters-grid">
+        @foreach (var chapter in Model.SelectableVerses.GroupBy(v => v.Chapter))
+        {
+            var firstVerse = chapter.First();
+            var chapterKey = chapter.Key;
+            
+            <div class="chapter-card" x-bind:class="{ 'expanded': activeChapter === @(chapterKey) }">
+                <div class="chapter-card-header">
+                    <a class="chapter-link-btn" href="@Url.Action("Read", new { bookAbbr = firstVerse.BookAbbreviation, chapter = chapterKey })" title="Read Chapter @chapterKey">
+                        <span class="chapter-label">Chapter</span>
+                        <span class="chapter-number">@chapterKey</span>
+                    </a>
+                    <button class="chapter-expand-toggle" 
+                            x-on:click="activeChapter = (activeChapter === @(chapterKey) ? null : @(chapterKey))"
+                            x-bind:aria-expanded="activeChapter === @(chapterKey) ? 'true' : 'false'"
+                            title="Toggle verses list">
+                        <i class="fas fa-chevron-down" x-bind:style="activeChapter === @(chapterKey) ? 'transform: rotate(180deg)' : 'transition: transform 0.2s ease'"></i>
+                    </button>
+                </div>
+                
+                <div class="chapter-verses-panel" x-show="activeChapter === @(chapterKey)" x-collapse x-cloak>
+                    <div class="verses-grid">
+                        @foreach (var verse in chapter)
+                        {
+                            <a class="verse-selector-btn" 
+                               href="@Url.Action("Read", new { bookAbbr = verse.BookAbbreviation, chapter = verse.Chapter })#vs-@verse.Verse"
+                               title="Read verse @verse.Verse">
+                                @verse.Verse
+                            </a>
+                        }
                     </div>
                 </div>
-            }
-        </div>
+            </div>
+        }
     </div>
+</div>

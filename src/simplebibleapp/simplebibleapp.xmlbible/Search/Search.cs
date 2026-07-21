@@ -31,10 +31,22 @@ namespace simplebibleapp.xmlbible.search
         }
 
     }
+    public class BookOccurrence
+    {
+        public string BookAbbr { get; }
+        public int Count { get; }
+        public BookOccurrence(string bookAbbr, int count)
+        {
+            BookAbbr = bookAbbr;
+            Count = count;
+        }
+    }
+
     public interface IVerseSearch
     {
-        IEnumerable<VerseInfo> GetGreekVersesByWordRef(int highlitedWordId);
-        IEnumerable<VerseInfo> GetHebrewVersesByWordRef(int highlitedWordId);
+        IEnumerable<VerseInfo> GetGreekVersesByWordRef(int highlitedWordId, string bookAbbr = null);
+        IEnumerable<VerseInfo> GetHebrewVersesByWordRef(int highlitedWordId, string bookAbbr = null);
+        IEnumerable<BookOccurrence> GetWordBookAggregates(string id);
     }
 
     public static class SearchHelps
@@ -54,19 +66,28 @@ namespace simplebibleapp.xmlbible.search
         {
             _bible = bible;
         }
-        public IEnumerable<VerseInfo> GetGreekVersesByWordRef(int highlitedWordId)
+        public IEnumerable<BookOccurrence> GetWordBookAggregates(string id)
+        {
+            return Array.Empty<BookOccurrence>();
+        }
+        public IEnumerable<VerseInfo> GetGreekVersesByWordRef(int highlitedWordId, string bookAbbr = null)
         {
             var doc = _bible.Value;
             var words = SearchGreekDictionary(doc, highlitedWordId);
-            return words.Select(w => GetVerseInfo(GetVerseNodeFromWord(w), highlitedWordId));
+            return words
+                .Select(w => GetVerseNodeFromWord(w))
+                .Where(v => v != null)
+                .Select(v => GetVerseInfo(v, highlitedWordId));
         }
 
-        public IEnumerable<VerseInfo> GetHebrewVersesByWordRef(int highlitedWordId)
+        public IEnumerable<VerseInfo> GetHebrewVersesByWordRef(int highlitedWordId, string bookAbbr = null)
         {
-            //var doc = _bible.Value;
-            //var words = SearchGreekDictionary(doc, highlitedWordId);
-            //return words.Select(w => GetVerseInfo(GetVerseNodeFromWord(w), highlitedWordId));
-            return new VerseInfo[] { };
+            var doc = _bible.Value;
+            var words = SearchHebrewDictionary(doc, highlitedWordId);
+            return words
+                .Select(w => GetVerseNodeFromWord(w))
+                .Where(v => v != null)
+                .Select(v => GetVerseInfo(v, highlitedWordId));
         }
 
 
@@ -84,11 +105,23 @@ namespace simplebibleapp.xmlbible.search
             var verseText = new StringBuilder();
             Func<XmlNode, string> wordSpace = n => n.NodeType != XmlNodeType.Text && n.PreviousSibling?.Name == "w" ? " " : string.Empty;
             Func<XmlNode, string> getEmphText = n =>
-                         n.NodeType != XmlNodeType.Text &&
-                         n.Name == "w" &&
-                         n.Attributes.Cast<XmlAttribute>().Any(x => x.Name == "lemma" && x.InnerText.Contains(highlitedWordId.ToString())) ?
-                         $"<em>{n.InnerText}</em>" :
-                         n.InnerText;
+            {
+                if (n.NodeType == XmlNodeType.Text || n.Name != "w")
+                    return n.InnerText;
+
+                var lemmaAttr = n.Attributes?["lemma"];
+                if (lemmaAttr == null)
+                    return n.InnerText;
+
+                var lemmas = lemmaAttr.InnerText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var searchStrGreek = $"strong:G{highlitedWordId}";
+                var searchStrHebrew = $"strong:H0{highlitedWordId}";
+
+                if (lemmas.Any(l => l == searchStrGreek || l == searchStrHebrew))
+                    return $"<em>{n.InnerText}</em>";
+
+                return n.InnerText;
+            };
             verseNodes.ToList().ForEach(n =>
             {
                 verseText.Append(wordSpace(n) + getEmphText(n));
@@ -98,7 +131,10 @@ namespace simplebibleapp.xmlbible.search
 
 
         IEnumerable<XmlNode> SearchGreekDictionary(XmlDocument doc, int greekStrongsRef) =>
-            doc.SelectNodes($"//*[name()='w' and contains(@lemma, 'strong:G{greekStrongsRef}')]").Cast<XmlNode>();
+            doc.SelectNodes($"//*[name()='w' and contains(concat(' ', normalize-space(@lemma), ' '), ' strong:G{greekStrongsRef} ')]").Cast<XmlNode>();
+
+        IEnumerable<XmlNode> SearchHebrewDictionary(XmlDocument doc, int hebrewStrongsRef) =>
+            doc.SelectNodes($"//*[name()='w' and contains(concat(' ', normalize-space(@lemma), ' '), ' strong:H0{hebrewStrongsRef} ')]").Cast<XmlNode>();
 
         IEnumerable<XmlNode> GetWordVerse(XmlNode word)
         {
@@ -109,14 +145,13 @@ namespace simplebibleapp.xmlbible.search
         XmlNode GetVerseNodeFromWord(XmlNode word)
         {
             var topVerse = word;
-            while (topVerse.Name != "verse")
+            while (topVerse != null && topVerse.Name != "verse")
             {
-                //words can be wrapped in other tags like quotes, verse can continue outside of parent tags
-                //therefore the prev sibling could be null because it is the beginning of a wrapping node but NOT
-                //the start of a verse
                 if (topVerse.PreviousSibling == null)
                 {
                     topVerse = topVerse.ParentNode;
+                    if (topVerse == null)
+                        break;
                 }
                 topVerse = topVerse.PreviousSibling;
             }
@@ -126,23 +161,27 @@ namespace simplebibleapp.xmlbible.search
         IEnumerable<XmlNode> GetVerseNodesFromTopVerseNode(XmlNode verseNode)
         {
             var output = new List<XmlNode>();
+            if (verseNode == null) return output;
             output.Add(verseNode);
             var bottomVerse = verseNode.NextSibling;
-            while (bottomVerse.Name != "verse")
+            while (bottomVerse != null && bottomVerse.Name != "verse")
             {
-                if (bottomVerse.Name == "q")
+                if (bottomVerse.Name == "q" && bottomVerse.HasChildNodes)
                 {
                     bottomVerse = bottomVerse.ChildNodes[0];
                 }
-                //words can be wrapped in other tags like quotes, verse can continue outside of parent tags
-                //therefore the next sibling could be null because it is the end of a wrapping node but NOT
-                //the end of a verse
                 if (bottomVerse.NextSibling == null)
                 {
-                    bottomVerse = bottomVerse.ParentNode.NextSibling;
+                    bottomVerse = bottomVerse.ParentNode?.NextSibling;
                 }
-                output.Add(bottomVerse);
-                bottomVerse = bottomVerse?.NextSibling;
+                else
+                {
+                    bottomVerse = bottomVerse.NextSibling;
+                }
+                if (bottomVerse != null)
+                {
+                    output.Add(bottomVerse);
+                }
             }
             return output;
         }

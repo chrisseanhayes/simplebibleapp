@@ -1,11 +1,11 @@
-﻿@using simplebibleapp.xmldictionary
+@using simplebibleapp.xmldictionary
 @model GreekDefViewModel
     @if (Model.Nodes.Any())
     {
 <div class="greek-def">
     @if (Model.IsTopElement)
     {
-        <i ng-click="closedef($event, '@Model.StrongNumber')" class="fa fa-times-circle defclose"></i>
+        <i data-strong="@Model.StrongNumber" class="fa fa-times-circle defclose"></i>
     }
     @foreach (var sibling in Model.Nodes)
     {

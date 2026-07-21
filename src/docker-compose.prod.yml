@@ -1,11 +1,7 @@
-version: '3'
 services:
-  web:
+  sbaweb:
     volumes:
      - /mnt:/mnt
   sbaredis:
     volumes:
       - /mnt/redis/persist:/data
-  sbamongodb:
-    volumes:
-      - /mnt/data/simplebibleapp:/data/db

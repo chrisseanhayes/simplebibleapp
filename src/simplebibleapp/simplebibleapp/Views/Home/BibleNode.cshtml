@@ -1,4 +1,4 @@
-﻿@using System.Diagnostics
+@using System.Diagnostics
 @using Microsoft.AspNetCore.Html
 @using Microsoft.CodeAnalysis.CSharp
 @using simplebibleapp.xmlbible
@@ -8,20 +8,16 @@
     Func<BeginVerseNode, IHtmlContent> renderBeginNode =
         @<em class="verse-number" id="vs-@item.Verse">
     @item.Verse.
-        <span class="heart">
-            <input class="heartcheck" id="toggle-heart-@string.Join('-',item.SId.Split('.'))" type="checkbox" ng-model="heartedVerses['@item.SId']" ng-change="heartClick('@item.SId')" />
-            <label class="heartchecklbl" for="toggle-heart-@string.Join('-',item.SId.Split('.'))">❤&#xFE0E;</label>
-        </span>
     </em>;
 
 Func<EndVerseNode, IHtmlContent> renderEndNode = @<br/>;
 
 Func<WordNode, IHtmlContent> renderWordNode =
-    @<em class="word-ref" ng-click="getref('@item.Lemma')"
-    ng-class="{selectedLemma:isSelectedLemma('@item.Lemma')}">
+    @<em class="word-ref" @@click="getref('@item.Lemma')"
+    :class="{selectedLemma:isSelectedLemma('@item.Lemma')}">
     @if (item.SubNodes.Any())
     {
-        @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })
+        @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item })
     }
     else
     {
@@ -33,19 +29,19 @@ Func<WordNode, IHtmlContent> renderWordNode =
 </em>;
 
 Func<InscriptionNode, IHtmlContent> renderInscriptionNode =
-@<em class="inscription">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</em>;
+@<em class="inscription">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item })</em>;
 
 Func<TitleNode, IHtmlContent> renderTitleNode =
-@<h4>@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</h4>;
+@<h4>@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item })</h4>;
 
 Func<ForeignNode, IHtmlContent> renderForeignNode =
 @<em>@item.N&nbsp;~&nbsp;@item.Text</em>;
 
 Func<QNode, IHtmlContent> renderQNode =
-@<em class="words-of">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</em>;
+@<em class="words-of">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item })</em>;
 
 Func<SegNode, IHtmlContent> renderSeg =
-@<em class="segment">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item, ChapterLikes = Model.ChapterLikes })</em>;
+@<em class="segment">@Html.Partial("BibleNode", new BibleChapterReading { BibleNode = item })</em>;
 
 Func<string, IHtmlContent> renderStrong = @<strong>@item</strong>;
 

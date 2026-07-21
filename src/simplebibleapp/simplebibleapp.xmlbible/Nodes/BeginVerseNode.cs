@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace simplebibleapp.xmlbible
 {
@@ -41,7 +41,7 @@ namespace simplebibleapp.xmlbible
 
     public class EndVerseNode : VerseBaseNode
     {
-        public EndVerseNode(NodeBase parent, string eId) : base(parent, eId)
+        public EndVerseNode(NodeBase parent, string sId) : base(parent, sId)
         {
         }
         public override NodeType XmlNodeType => NodeType.EndVerse;

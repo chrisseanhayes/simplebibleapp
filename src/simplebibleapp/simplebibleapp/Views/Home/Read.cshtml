@@ -1,49 +1,170 @@
-﻿@using simplebibleapp.xmlbible
+@using simplebibleapp.xmlbible
 @model ReadViewModel
 @{
     ViewBag.Title = Model.ChapterHeading;
+    
+    // Parse book name from ChapterHeading (e.g., "Genesis 1" -> "Genesis", "1 John 2" -> "1 John")
+    var chapterHeading = Model.ChapterHeading;
+    var lastSpaceIndex = chapterHeading.LastIndexOf(' ');
+    var bookName = lastSpaceIndex > 0 ? chapterHeading.Substring(0, lastSpaceIndex) : chapterHeading;
+
+    // Helper functions for deterministic minimap layout
+    Func<int, int, int> getWordWidth = (verseNum, wordIndex) => {
+        return 2 + ((verseNum * (wordIndex + 3)) % 6); // 2px to 7px width
+    };
+    Func<int, int> getWordCount = (verseNum) => {
+        return 4 + (verseNum % 4); // 4 to 7 words
+    };
 }
-<div ng-app="readApp" ng-controller="readController" ng-init="fullbible=false">
-    <h2>@Model.ChapterHeading</h2>
-    <div>
-        <div class="row">
-            <div class="col-md-8 col-lg-8 col-sm-8">
-                <div class="pull-right">
-                    @if (Model.HasPreviousChapter)
-                    {
-                        <a class="btn btn-xs btn-info" href="@Url.Action("Read", new {bookAbbr = Model.PreviousChapterBookAbbr, chapter = Model.PreviousChapterNumber})">Prev</a>
-                    }
-                    @if (Model.HasNextChapter)
-                    {
-                        <a class="btn btn-xs btn-info" href="@Url.Action("Read", new {bookAbbr = Model.NextChapterBookAbbr, chapter = Model.NextChapterNumber})">Next</a>
-                    }
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-4 col-sm-4">
-                <button class="pull-right btn btn-xs btn-info" ng-click="fullbible=!fullbible">dictionary</button>
-            </div>
+
+<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter)">
+    <!-- Navigation Breadcrumbs -->
+    <div class="bible-nav-container">
+        <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">
+            <ol class="breadcrumb-list">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-button home-button" href="/">📖 Books</a>
+                </li>
+                <li class="breadcrumb-separator" aria-hidden="true">›</li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-button" href="@Url.Action("Book", new { id = Model.BookAbbr })">@bookName</a>
+                </li>
+                <li class="breadcrumb-separator" aria-hidden="true">›</li>
+                <li class="breadcrumb-item">
+                    <span class="breadcrumb-button current">Chapter @Model.Chapter</span>
+                </li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Chapter Heading & Navigation Controls -->
+    <div class="read-controls-bar">
+        <h2 class="read-heading">@Model.ChapterHeading</h2>
+        
+        <div class="read-nav-actions">
+            <!-- Previous / Next Chapter Buttons -->
+            @if (Model.HasPreviousChapter)
+            {
+                <a class="btn-chapter-nav" 
+                   href="@Url.Action("Read", new { bookAbbr = Model.PreviousChapterBookAbbr, chapter = Model.PreviousChapterNumber })"
+                   title="Previous Chapter">
+                    <i class="fas fa-chevron-left"></i> Prev
+                </a>
+            }
+            
+            @if (Model.HasNextChapter)
+            {
+                <a class="btn-chapter-nav" 
+                   href="@Url.Action("Read", new { bookAbbr = Model.NextChapterBookAbbr, chapter = Model.NextChapterNumber })"
+                   title="Next Chapter">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            }
+
+            <!-- Dictionary/Strong's Sidebar Toggle -->
+            <button class="btn-dict-toggle" 
+                    x-bind:class="{ 'active': !fullbible }" 
+                    x-on:click="fullbible = !fullbible"
+                    title="Toggle Dictionary Sidebar">
+                <i class="fas fa-search-plus"></i>
+                <span x-text="fullbible ? 'Show Dictionary' : 'Hide Dictionary'">Dictionary</span>
+            </button>
         </div>
     </div>
 
-    <div id="bible-content" class="row bible-read" ng-init="init('@Model.BookAbbr',@Model.Chapter)">
-        <div id="bible-left" class="bible-text" ng-class="{'fullbible':fullbible,'dictview':!fullbible}">
-            <div class="bible-text">
-                @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = Model.BibleNode, ChapterLikes = Model.ChapterLikes })
+    <!-- Text reading pane & sidebar -->
+    <div id="bible-content" class="bible-read">
+        <div id="bible-left" class="bible-text" x-bind:style="fullbible ? 'flex: 1;' : 'flex: 1;'">
+            <div class="bible-text-content">
+                @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = Model.BibleNode })
             </div>
-
         </div>
-        <div id="bible-right" class="col-lg-4 columns" ng-hide="fullbible" data-sticky-container>
-            <div id="defs" class="sticky bible-def-sticky" data-sticky data-anchor="left"></div>
-            <div><i ng-show="defload" class="fas fa-spinner fa-spin"></i></div>
-            <div>
-                <h4>Word usage:</h4>
-                <div class="usage-ref" ng-repeat="verse in wordRefs">
-                    <span>{{verse.chapterAbbr}}</span>
-                    <span>{{verse.chapterNumber}}</span>:
-                    <span>{{verse.verseNumber}}</span>
-                    &quot;<span>{{decode(verse.verseXmlText)}}</span>&quot;
-                    <hr />
+        
+        <!-- Book Minimap Sidebar -->
+        <div class="bible-minimap-container">
+            <div class="minimap-header">
+                <span>Minimap</span>
+            </div>
+            <div class="minimap-chapters" id="minimap-scroll-container">
+                @foreach (var chapter in Model.SelectableVerses.GroupBy(v => v.Chapter))
+                {
+                    var chapNum = chapter.Key;
+                    var isCurrentChapter = chapNum == Model.Chapter;
+                    var verses = chapter.ToArray();
+                    
+                    <div class="minimap-chapter @(isCurrentChapter ? "current-chapter" : "")" 
+                         data-chapter="@chapNum"
+                         id="minimap-ch-@chapNum">
+                         
+                        <a href="@Url.Action("Read", new { bookAbbr = Model.BookAbbr, chapter = chapNum })" class="minimap-chapter-link" title="Chapter @chapNum">
+                            <span class="minimap-chapter-label">Ch @chapNum</span>
+                        </a>
+                        <div class="minimap-verses-container">
+                            @foreach (var v in verses)
+                            {
+                                var wordCount = getWordCount(v.Verse);
+                                <a href="@Url.Action("Read", new { bookAbbr = Model.BookAbbr, chapter = chapNum })#vs-@v.Verse" 
+                                   class="minimap-verse" 
+                                   data-chapter="@chapNum" 
+                                   data-verse="@v.Verse"
+                                   title="Chapter @chapNum Verse @v.Verse"
+                                   x-bind:class="{ 'highlighted-verse': isVerseHighlighted(@chapNum, @v.Verse) }">
+                                     @for (int i = 0; i < wordCount; i++)
+                                     {
+                                         var width = getWordWidth(v.Verse, i);
+                                         <span class="minimap-word" style="width: @(width)px;"></span>
+                                     }
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div id="bible-right" x-show="!fullbible" x-transition x-cloak>
+            <div id="defs" class="bible-def-sticky"></div>
+            
+            <div x-show="defload" class="text-center py-4">
+                <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            </div>
+            
+            <div class="word-usage-excluded alert alert-info my-3" x-show="isExcluded" x-transition>
+                <i class="fas fa-info-circle mr-1"></i>
+                Common conjunctions, prepositions, and articles are currently excluded from search to optimize performance.
+            </div>
+            
+            <div class="word-usage-container" x-show="!isExcluded && (wordRefs.length > 0 || bookOccurrences.length > 0)">
+                <h4 class="usage-title">Word usage:</h4>
+
+                <div class="word-usage-books my-3" x-show="bookOccurrences.length > 1">
+                    <div class="text-muted small font-weight-bold mb-1">Occurrences in other books:</div>
+                    <div class="d-flex flex-wrap" style="gap: 4px; margin-bottom: 12px;">
+                        <template x-for="occ in bookOccurrences" x-bind:key="occ.bookAbbr">
+                            <button class="btn btn-xs"
+                                    :class="selectedUsageBook === occ.bookAbbr ? 'btn-primary' : 'btn-light'"
+                                    @@click="selectUsageBook(occ.bookAbbr)"
+                                    style="padding: 2px 6px; font-size: 0.75rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span x-text="occ.bookAbbr"></span>
+                                <span class="badge" :class="selectedUsageBook === occ.bookAbbr ? 'badge-light text-primary' : 'badge-secondary'" x-text="occ.count"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
+
+                <div class="text-muted small font-weight-bold mb-2" x-show="wordRefs.length > 0">
+                    Showing occurrences in <span x-text="selectedUsageBook"></span>:
+                </div>
+
+                <template x-for="verse in wordRefs" x-bind:key="verse.chapterAbbr + '.' + verse.chapterNumber + '.' + verse.verseNumber">
+                    <a :href="`/Home/Read?bookAbbr=${encodeURIComponent(verse.chapterAbbr)}&chapter=${verse.chapterNumber}#vs-${verse.verseNumber}`"
+                       class="usage-ref"
+                       @@click="if (verse.chapterAbbr.toLowerCase() === bookAbbr.toLowerCase() && verse.chapterNumber === chapter) { $event.preventDefault(); window.location.hash = 'vs-' + verse.verseNumber; }">
+                        <span x-text="verse.chapterAbbr"></span>
+                        <span x-text="verse.chapterNumber"></span>:<span x-text="verse.verseNumber"></span>
+                        &quot;<span x-html="decode(verse.verseXmlText)"></span>&quot;
+                    </a>
+                </template>
             </div>
         </div>
     </div>

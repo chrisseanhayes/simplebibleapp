@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
-using simplebibleapp.Data.Hearts;
 using simplebibleapp.Models;
 using simplebibleapp.xmlbible;
 using simplebibleapp.xmlbible.search;
@@ -30,7 +29,6 @@ namespace simplebibleapp.Controllers
         private readonly IChapterBuilder _builder;
         private readonly IBookNameRepository _bookNameRepository;
         private readonly IDictionaryRepository _dictionaryRepository;
-        private readonly IHeartRepository _heartRepository;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly IWordCountBuilder _wordCountBuilder;
         private readonly IVerseSearch _verseSearch;
@@ -39,14 +37,12 @@ namespace simplebibleapp.Controllers
             IChapterBuilderFactory factory,
             IBookNameRepository bookNameRepository,
             IDictionaryRepository dictionaryRepository,
-            IHeartRepository heartRepository,
             IWordCountBuilderFactory wordCountBuilderFactory,
             IVerseSearch verseSearch)
         {
             _builder = factory.GetBuilder();
             _bookNameRepository = bookNameRepository;
             _dictionaryRepository = dictionaryRepository;
-            _heartRepository = heartRepository;
             _wordCountBuilder = wordCountBuilderFactory.GetBuilder();
             _verseSearch = verseSearch;
         }
@@ -101,7 +97,6 @@ namespace simplebibleapp.Controllers
         {
             var biblechapter = _builder.GetChapter(bookAbbr, chapter);
             var chapterName = _bookNameRepository.GetBooks().First(b => b.SearchAbbr == bookAbbr).BookName;
-            var likes = HttpContext.Session.Keys.Where(k => k.StartsWith($"{bookAbbr}.{chapter}"));
             //var wordInfos = _wordCountBuilder.GetWords().Where(w => w.BookAbbr == bookAbbr && w.Chapter == chapter)
             //    .ToArray();
             var vm = new ReadViewModel
@@ -116,8 +111,8 @@ namespace simplebibleapp.Controllers
                 HasNextChapter = _builder.HasNextChapter,
                 NextChapterBookAbbr = _builder.NextBookAbbr,
                 NextChapterNumber = _builder.NextChapterNumber,
-                ChapterLikes = likes,
-                WordInfos = new WordInfo[0]
+                WordInfos = new WordInfo[0],
+                SelectableVerses = _bookNameRepository.GetSelectableVerses(bookAbbr).ToArray()
             };
             return View(vm);
         }
@@ -138,13 +133,19 @@ namespace simplebibleapp.Controllers
         }
 
         [HttpGet]
-        public IEnumerable<VerseInfo> GetWordRefs(string id)
+        public IEnumerable<VerseInfo> GetWordRefs(string id, string bookAbbr = null)
         {
             return ParseByDictionary(dictRef => {
-                return _verseSearch.GetGreekVersesByWordRef(dictRef);
+                return _verseSearch.GetGreekVersesByWordRef(dictRef, bookAbbr);
             }, dictRef => {
-                return _verseSearch.GetHebrewVersesByWordRef(dictRef);
+                return _verseSearch.GetHebrewVersesByWordRef(dictRef, bookAbbr);
             }, () => { return new VerseInfo[] { }; }, id);
+        }
+
+        [HttpGet]
+        public IEnumerable<BookOccurrence> GetWordAggregates(string id)
+        {
+            return _verseSearch.GetWordBookAggregates(id);
         }
 
         private T ParseByDictionary<T>(Func<int,T> forGreekDefinition, Func<int,T> forHebrewDefinition, Func<T> defaultAction, string id){
@@ -165,40 +166,6 @@ namespace simplebibleapp.Controllers
             return defaultAction();//PartialView("Error");
         }
 
-        [HttpPost]
-        public async Task<IActionResult> HeartVerse(string bookAbbr, int chapter, int verse, bool selected)
-        {
-            AddHeartToDatabase(bookAbbr, chapter, verse, selected);
-            await SetHeartedSession(bookAbbr, chapter, verse, selected);
-            return Ok();
-        }
-
-        [HttpGet]
-        public JsonResult GetChapterHearts(string bookAbbr, int chapter)
-        {
-            var likes = GetSessionHeartsForChapter(bookAbbr, chapter);
-            return Json(likes);
-        }
-
-        private IEnumerable<string> GetSessionHeartsForChapter(string bookAbbr, int chapter, int timeoutretries = 0)
-        {
-            IEnumerable<string> likes = new string[0];
-            while (timeoutretries < 3)
-            {
-                try
-                {
-                    likes = HttpContext.Session.Keys.Where(k => k.StartsWith($"{bookAbbr}.{chapter}"));
-                    break;
-                }
-                catch (RedisTimeoutException)
-                {
-                    return GetSessionHeartsForChapter(bookAbbr, chapter, ++timeoutretries);
-                }
-
-            }
-            return likes;
-        }
-
         [Authorize]
         [HttpGet]
         public ActionResult Login()
@@ -212,57 +179,6 @@ namespace simplebibleapp.Controllers
             await HttpContext.SignOutAsync("Cookies");
             await HttpContext.SignOutAsync("oidc");
             return View();
-        }
-
-        private async Task SetHeartedSession(string bookAbbr, int chapter, int verse, bool selected)
-        {
-            if (!selected)
-            {
-                HttpContext.Session.Remove($"{bookAbbr}.{chapter}.{verse}");
-                Console.WriteLine($"{bookAbbr}.{chapter}.{verse} REMOVED");
-            }
-            else if (!IsSelectedFromSession(bookAbbr, chapter, verse))
-            {
-                HttpContext.Session.SetString($"{bookAbbr}.{chapter}.{verse}", "true");
-                Console.WriteLine($"{bookAbbr}.{chapter}.{verse} ADDED");
-            }
-
-            await HttpContext.Session.CommitAsync();
-
-        }
-
-        private bool IsSelectedFromSession(string bookAbbr, int chapter, int verse)
-        {
-            return (bool.TryParse(HttpContext.Session.GetString($"{bookAbbr}.{chapter}.{verse}") ?? "false", out bool isselected) && isselected);
-        }
-
-        private static ConcurrentDictionary<string, Task> _dbsaves = new ConcurrentDictionary<string, Task>();
-
-        private void AddHeartToDatabase(string bookAbbr, int chapter, int verse, bool selected)
-        {
-            var completedTaskKeys = _dbsaves.Keys.Where(k => _dbsaves[k].IsCompleted).ToList();
-            completedTaskKeys.ForEach(k => _dbsaves.TryRemove(k, out var val));
-            _dbsaves.TryAdd(Guid.NewGuid().ToString(), Task.Run(() =>
-             {
-                 try
-                 {
-                     _heartRepository.Add(new HeartedVerseInfo
-                     {
-                         BookAbbr = bookAbbr,
-                         Chapter = chapter,
-                         Verse = verse,
-                         Selected = selected,
-                         AddedOn = DateTime.Now,
-                         IP = Request.HttpContext.Connection?.RemoteIpAddress?.ToString(),
-                         Agent = Request.Headers.TryGetValue("User-Agent", out var agent) ? agent.ToString() : null
-                     });
-
-                 }
-                 catch (Exception ex)
-                 {
-                     Logger.Log(LogLevel.Error, ex);
-                 }
-             }));
         }
 
     }

@@ -4,5 +4,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\simplebibleapp.xmldatacore\simplebibleapp.xmldatacore.csproj" />
+    <ProjectReference Include="..\simplebibleapp.xmlbible\simplebibleapp.xmlbible.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 </Project>

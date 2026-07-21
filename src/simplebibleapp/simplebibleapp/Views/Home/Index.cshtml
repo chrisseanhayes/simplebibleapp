@@ -1,33 +1,48 @@
-﻿@model IEnumerable<simplebibleapp.xmlbiblerepository.BookListItem>
-    @{
-    ViewBag.Title = "Index";
-    }
-<div id="scroll-content">
-    <h2>Index</h2>
-    <div class="panel panel-primary">
+@model IEnumerable<simplebibleapp.xmlbiblerepository.BookListItem>
+@{
+    ViewBag.Title = "Bible Books";
+}
+
+<div class="bible-page-container">
+    <div class="bible-nav-container">
+        <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">
+            <ol class="breadcrumb-list">
+                <li class="breadcrumb-item">
+                    <span class="breadcrumb-button home-button current">
+                        📖 Books
+                    </span>
+                </li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="testaments-grid">
         @foreach (var testament in Model.GroupBy(x => x.Testament))
         {
-            <div class="panel-heading">
-                <h3 class="panel-title text-center">@testament.Key Testament</h3>
-            </div>
-            <div class="panel-body">
-                @foreach (var book in testament)
-                {
-                    <div class="col-md-3 text-center">
-                        <a class="btn btn-lg btn-default btn-block btn-bible-book" href="@Url.Action("Book", new {id=book.SearchAbbr})">
-                            @if (book.IsChecked)
-                            {
-                                <span class="fa-stack pull-left checked">
-                                    <i class="fa fa-circle fa-stack-2x"></i>
-                                    <i class="fa fa-check fa-stack-1x fa-inverse"></i>
-                                </span>
-                            }
-                            <span>@book.BookName</span>
+            <div class="testament-card">
+                <div class="testament-header">
+                    <h3 class="testament-title">@testament.Key Testament</h3>
+                    <span class="testament-badge">@testament.Count() Books</span>
+                </div>
+                <div class="books-grid">
+                    @foreach (var book in testament)
+                    {
+                        <a class="book-card-link @(book.IsChecked ? "book-checked" : "")" 
+                           href="@Url.Action("Book", new { id = book.SearchAbbr })"
+                           title="Read @book.BookName">
+                            <div class="book-card-content">
+                                <span class="book-name">@book.BookName</span>
+                                @if (book.IsChecked)
+                                {
+                                    <span class="checked-icon" title="Finished reading this book">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                }
+                            </div>
                         </a>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         }
-
     </div>
 </div>

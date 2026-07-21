@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Xml;
 
 namespace simplebibleapp.xmlbible
@@ -16,7 +16,7 @@ namespace simplebibleapp.xmlbible
             else
                 return new EndVerseNode(
                     parent: builder.CurrentNode,
-                    eId: reader.GetAttribute(("eID")));
+                    sId: reader.GetAttribute("eID"));
         }
     }
 }

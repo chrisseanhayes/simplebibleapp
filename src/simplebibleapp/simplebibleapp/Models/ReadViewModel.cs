@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using simplebibleapp.xmlbible;
 using simplebibleapp.xmldictionary;
+using simplebibleapp.xmlbiblerepository;
 
 namespace simplebibleapp.Models
 {
@@ -16,15 +17,13 @@ namespace simplebibleapp.Models
         public bool HasNextChapter { get; set; }
         public string NextChapterBookAbbr { get; set; }
         public int NextChapterNumber { get; set; }
-        public IEnumerable<string> ChapterLikes { get; set; }
         public IEnumerable<WordInfo> WordInfos { get; set; }
+        public IEnumerable<SelectableVerse> SelectableVerses { get; set; }
     }
 
     public class BibleChapterReading
     {
         public INode BibleNode { get; set; }
-        public IEnumerable<string> ChapterLikes { get; set; }
-
     }
 
     public class GreekDefViewModel

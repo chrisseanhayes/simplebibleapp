@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using simplebibleapp.xmldatacore;
 
 namespace simplebibleapp.xmlbible
@@ -11,22 +10,16 @@ namespace simplebibleapp.xmlbible
 
     public class ChapterBuilderFactory : IChapterBuilderFactory
     {
-        private readonly IEnumerable<IState> _states;
         private readonly IXmlPathResolver _pathResolver;
 
-        public ChapterBuilderFactory(IEnumerable<IState> states, IXmlPathResolver pathResolver)
+        public ChapterBuilderFactory(IXmlPathResolver pathResolver)
         {
-            _states = states;
             _pathResolver = pathResolver;
         }
+
         public IChapterBuilder GetBuilder()
         {
-            Func<IChapterBuilder> source = () => new ChapterBuilder(_states, _pathResolver);
-            var builder = new MemCacheChapterBuilder(source);
-
-            MemCacheChapterBuilder.LoadBible(source);
-
-            return builder;
+            return new SqliteChapterBuilder(_pathResolver);
         }
     }
 }
