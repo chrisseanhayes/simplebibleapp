@@ -25,6 +25,9 @@ namespace simplebibleapp.Models
     public class BibleChapterReading
     {
         public INode BibleNode { get; set; }
+        public string ChapterHeading { get; set; }
+        public string BookAbbr { get; set; }
+        public int Chapter { get; set; }
     }
 
     public class GreekDefViewModel

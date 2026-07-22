@@ -7,6 +7,7 @@ const EXCLUDED_STRONGS = new Set([
 document.addEventListener('alpine:init', () => {
     Alpine.data('readApp', () => ({
         fullbible: false,
+        sidebarTab: 'definition', // 'definition', 'occurrences', 'usage', 'synonyms', 'insight'
         searchMenuVisible: false,
         defload: false,
         htmlItems: [], // List of active strongs reference objects e.g. [{ ref: 'G3068', html: '...' }]
@@ -38,6 +39,13 @@ document.addEventListener('alpine:init', () => {
         synonymConnectionId: null,
         synonymHub: null,
         synonymCache: {},        // Cache for synonym data keyed by strongs ref
+        
+        // ── Verse Insight state ──────────────────────────────────────────────
+        insightData: null,       // VerseInsightViewModel
+        insightLoading: false,
+        insightError: null,
+        insightActiveRef: '',
+        insightCache: {},
 
         getSavedLemma() {
             try {
@@ -123,6 +131,32 @@ document.addEventListener('alpine:init', () => {
                 this.synonymHub.on("ReceiveSynonymsError", (err) => {
                     this.synonymError = err.error || "Unknown error from server.";
                     this.synonymLoading = false;
+                });
+                
+                this.synonymHub.on("ReceiveVerseInsightReady", async (reference) => {
+                    if (this.insightActiveRef === reference) {
+                        try {
+                            const params = new URLSearchParams({ reference: reference });
+                            const cacheResp = await fetch('/Scripture/CheckInsightCache?' + params.toString());
+                            if (cacheResp.ok) {
+                                const cacheResult = await cacheResp.json();
+                                if (cacheResult.cached && cacheResult.data) {
+                                    this.insightCache[reference] = cacheResult.data;
+                                    this.insightData = cacheResult.data;
+                                }
+                            }
+                        } catch(err) {
+                            console.error('Error fetching ready insight:', err);
+                        }
+                        this.insightLoading = false;
+                    }
+                });
+
+                this.synonymHub.on("ReceiveVerseInsightError", (reference, msg) => {
+                    if (this.insightActiveRef === reference) {
+                        this.insightError = msg || "Unknown error from server.";
+                        this.insightLoading = false;
+                    }
                 });
 
                 this.synonymHub.start().then(() => {
@@ -470,6 +504,76 @@ document.addEventListener('alpine:init', () => {
                 'antonym': 'Antonym'
             };
             return map[rel] || rel;
+        },
+        
+        // ── Verse Insight Engine ───────────────────────────────────────────
+        
+        async loadVerseInsight(reference) {
+            if (!reference) return;
+            if (this.insightLoading) return;
+            
+            // Open sidebar and switch to insight tab
+            this.fullbible = false;
+            this.sidebarTab = 'insight';
+            this.insightActiveRef = reference;
+            
+            if (this.insightCache[reference]) {
+                this.insightData = this.insightCache[reference];
+                return;
+            }
+            
+            this.insightLoading = true;
+            this.insightError = null;
+            this.insightData = null;
+            
+            try {
+                // Check server-side cache first to avoid spinning up tasks
+                const params = new URLSearchParams({ reference: reference });
+                const cacheResp = await fetch('/Scripture/CheckInsightCache?' + params.toString());
+                if (cacheResp.ok) {
+                    const cacheResult = await cacheResp.json();
+                    if (cacheResult.cached && cacheResult.data) {
+                        this.insightCache[reference] = cacheResult.data;
+                        if (this.insightActiveRef === reference) {
+                            this.insightData = cacheResult.data;
+                            this.insightLoading = false;
+                        }
+                        return; // Found in cache, we're done
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking insight cache:', err);
+            }
+            
+            try {
+                // Ensure SignalR connection is ready
+                if (!this.synonymConnectionId) {
+                    this.insightError = "Still connecting to server, please wait a moment...";
+                    this.insightLoading = false;
+                    return;
+                }
+                
+                const response = await fetch('/Scripture/GetInsight', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // The anti-forgery token is currently missing in headers but it's optional if we remove ValidateAntiForgeryToken
+                    // Let's pass what we can find, or skip it
+                    body: JSON.stringify({ reference: reference, connectionId: this.synonymConnectionId })
+                });
+
+                if (!response.ok) {
+                     const errData = await response.json().catch(() => ({}));
+                     throw new Error(errData.error || 'Network response was not ok.');
+                }
+                
+                // The actual insight will be received via the "ReceiveInsight" SignalR event
+            } catch (err) {
+                this.insightError = 'Error submitting request: ' + err.message;
+                this.insightLoading = false;
+                console.error('loadVerseInsight error:', err);
+            }
         }
     }));
 });

@@ -24,6 +24,7 @@ using simplebibleapp.xmldictionary;
 using Microsoft.Extensions.Caching;
 using NLog.Extensions.Logging;
 using simplebibleapp.Hubs;
+using simplebibleapp.Services;
 
 namespace simplebibleapp
 {
@@ -44,6 +45,8 @@ namespace simplebibleapp
         {
             services.AddMvc();
             services.AddSignalR();
+            
+            services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 
             // In-memory cache for the synonym engine (avoids repeated Gemini CLI calls)
             services.AddMemoryCache();
@@ -88,6 +91,18 @@ namespace simplebibleapp
             registry.For<IWordCountBuilderFactory>().Add<WordCountBuilderFactory>();
             registry.For<IVerseSearch>().Use<SqliteVerseSearch>();
 
+            // Verse insight engine: VerseInsightCliService (inner) -> CachedVerseInsightCliService (L1 memory + L2 SQLite)
+            registry.For<VerseInsightCliService>().Use<VerseInsightCliService>();
+            registry.ForSingletonOf<VerseInsightCache>().Use<VerseInsightCache>();
+            registry.For<IVerseInsightCliService>().Use(ctx =>
+            {
+                var inner  = ctx.GetInstance<VerseInsightCliService>();
+                var l1     = ctx.GetInstance<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                var l2     = ctx.GetInstance<VerseInsightCache>();
+                var logger = ctx.GetInstance<Microsoft.Extensions.Logging.ILogger<CachedVerseInsightCliService>>();
+                return new CachedVerseInsightCliService(inner, l1, l2, logger);
+            }).Scoped();
+
             // Synonym engine: AgyCliService (inner) → CachedAgyLinguisticService (L1 memory + L2 SQLite)
             registry.For<AgyCliService>().Use<AgyCliService>();
             registry.ForSingletonOf<AgyLinguisticCache>().Use<AgyLinguisticCache>();
@@ -116,6 +131,10 @@ namespace simplebibleapp
                 // Ensure the Agy linguistic cache table exists in its own DB file
                 var agyCache = scope.ServiceProvider.GetRequiredService<AgyLinguisticCache>();
                 agyCache.EnsureTableCreated();
+
+                // Ensure the verse insight cache table exists
+                var verseCache = scope.ServiceProvider.GetRequiredService<VerseInsightCache>();
+                verseCache.EnsureTableCreated();
             }
 
             var fordwardedHeaderOptions = new ForwardedHeadersOptions

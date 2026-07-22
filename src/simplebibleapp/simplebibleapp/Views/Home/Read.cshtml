@@ -170,7 +170,7 @@
 
         <div id="bible-left" class="bible-text" x-bind:style="fullbible ? 'flex: 1;' : 'flex: 1;'">
             <div class="bible-text-content">
-                @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = Model.BibleNode })
+                @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = Model.BibleNode, ChapterHeading = Model.ChapterHeading, BookAbbr = Model.BookAbbr, Chapter = Model.Chapter })
             </div>
         </div>
         
@@ -216,7 +216,7 @@
             </div>
         </div>
         
-        <div id="bible-right" x-show="!fullbible" x-transition x-cloak style="display: flex; flex-direction: column;" x-data="{ sidebarTab: 'definition' }">
+        <div id="bible-right" x-show="!fullbible" x-transition x-cloak style="display: flex; flex-direction: column;">
             <div class="search-sidebar-header">
                 <h3>Dictionary</h3>
                 <button class="btn-close-sidebar" x-on:click="fullbible = true">
@@ -224,12 +224,13 @@
                 </button>
             </div>
             
-            <!-- Main Sidebar Tabs (Definition, Occurrences, Usage, Synonyms) -->
-            <div class="sidebar-main-tabs" style="display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color);">
-                <button class="btn btn-link" :class="sidebarTab === 'definition' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'definition'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Definition</button>
-                <button class="btn btn-link" :class="sidebarTab === 'occurrences' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'occurrences'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Occurrences</button>
-                <button class="btn btn-link" :class="sidebarTab === 'usage' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'usage'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Usage</button>
-                <button class="btn btn-link" :class="sidebarTab === 'synonyms' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'synonyms'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Synonyms</button>
+            <!-- Main Sidebar Tabs (Definition, Occurrences, Usage, Synonyms, Insight) -->
+            <div class="sidebar-main-tabs" style="display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); flex-wrap: wrap;">
+                <button class="btn btn-link" :class="sidebarTab === 'definition' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'definition'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Definition</button>
+                <button class="btn btn-link" :class="sidebarTab === 'occurrences' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'occurrences'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Occurrences</button>
+                <button class="btn btn-link" :class="sidebarTab === 'usage' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'usage'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Usage</button>
+                <button class="btn btn-link" :class="sidebarTab === 'synonyms' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'synonyms'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Synonyms</button>
+                <button class="btn btn-link" :class="sidebarTab === 'insight' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'insight'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Insight</button>
             </div>
 
             <div class="bible-right-content" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
@@ -372,6 +373,34 @@
                                     </template>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verse Insight Tab -->
+                <div x-show="sidebarTab === 'insight'" style="padding: 10px;">
+                    <div class="syn-panel" style="display: block; position: static; box-shadow: none; border: none; height: auto;">
+                        <div class="syn-panel-header" x-show="insightActiveRef">
+                            <div class="syn-panel-title">
+                                <i class="fas fa-book-reader"></i>
+                                Verse Synopsis
+                                <span class="syn-ref-badge" x-text="insightActiveRef"></span>
+                            </div>
+                        </div>
+
+                        <div class="syn-loading" x-show="insightLoading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Analysing with AGY CLI...</span>
+                        </div>
+
+                        <div class="syn-error" x-show="!insightLoading && insightError" x-text="insightError"></div>
+
+                        <div class="text-center py-4" x-show="!insightLoading && !insightData && !insightActiveRef">
+                            <p class="text-muted">Click a verse number in the text to load its synopsis.</p>
+                        </div>
+
+                        <div x-show="!insightLoading && insightData">
+                            <div class="insight-content" x-html="insightData?.renderedHtml"></div>
                         </div>
                     </div>
                 </div>
