@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using simplebibleapp.xmldatacore;
+using Microsoft.Extensions.Configuration;
 
 namespace simplebibleapp.Services
 {
@@ -13,9 +14,12 @@ namespace simplebibleapp.Services
         private readonly string _dbPath;
         private readonly ILogger<VerseInsightCache> _logger;
 
-        public VerseInsightCache(IXmlPathResolver pathResolver, ILogger<VerseInsightCache> logger)
+        public VerseInsightCache(IConfiguration configuration, IXmlPathResolver pathResolver, ILogger<VerseInsightCache> logger)
         {
-            _dbPath = Path.Combine(pathResolver.GetPath(), "verse_insight_cache.db");
+            var dataDir = configuration["DataplanePath"] ?? pathResolver.GetPath();
+            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+            
+            _dbPath = Path.Combine(dataDir, "verse_insight_cache.db");
             _logger = logger;
         }
 

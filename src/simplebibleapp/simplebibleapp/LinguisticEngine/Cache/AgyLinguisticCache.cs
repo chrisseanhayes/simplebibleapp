@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using simplebibleapp.LinguisticEngine.Models;
 using simplebibleapp.xmldatacore;
 
+using Microsoft.Extensions.Configuration;
+
 namespace simplebibleapp.LinguisticEngine.Cache
 {
     /// <summary>
@@ -27,10 +29,12 @@ namespace simplebibleapp.LinguisticEngine.Cache
             PropertyNameCaseInsensitive = true
         };
 
-        public AgyLinguisticCache(IXmlPathResolver pathResolver, ILogger<AgyLinguisticCache> logger)
+        public AgyLinguisticCache(IConfiguration configuration, IXmlPathResolver pathResolver, ILogger<AgyLinguisticCache> logger)
         {
-            // Store alongside the existing bible.db in Data/Bible/
-            _dbPath = Path.Combine(pathResolver.GetPath(), "agy_cache.db");
+            var dataDir = configuration["DataplanePath"] ?? pathResolver.GetPath();
+            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+            
+            _dbPath = Path.Combine(dataDir, "agy_cache.db");
             _logger = logger;
         }
 

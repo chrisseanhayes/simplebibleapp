@@ -30,8 +30,10 @@ services:
       - '5001:8080'
     environment:
       - ConnectionStrings__Redis=sbaredis:6379
+      - DataplanePath=/app/dataplane
     volumes:
       - ~/.gemini:/root/.gemini
+      - ./dataplane:/app/dataplane
   sbaredis:
     image: "redis:alpine"
     command: redis-server --appendonly yes
