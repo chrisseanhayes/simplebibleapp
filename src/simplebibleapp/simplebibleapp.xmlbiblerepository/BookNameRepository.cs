@@ -20,7 +20,8 @@ namespace simplebibleapp.xmlbiblerepository
 
         public IEnumerable<BookListItem> GetBooks()
         {
-            var dbPath = Path.Combine(_pathResolver.GetPath(), "bible.db");
+            var dataDir = Environment.GetEnvironmentVariable("DataplanePath") ?? _pathResolver.GetPath();
+            var dbPath = Path.Combine(dataDir, "bible.db");
             var connString = $"Data Source={dbPath}";
             var books = new List<BookListItem>();
 
@@ -54,7 +55,8 @@ namespace simplebibleapp.xmlbiblerepository
 
         public IEnumerable<SelectableVerse> GetSelectableVerses(string bookAbbr)
         {
-            var dbPath = Path.Combine(_pathResolver.GetPath(), "bible.db");
+            var dataDir = Environment.GetEnvironmentVariable("DataplanePath") ?? _pathResolver.GetPath();
+            var dbPath = Path.Combine(dataDir, "bible.db");
             var connString = $"Data Source={dbPath}";
             var list = new List<SelectableVerse>();
 

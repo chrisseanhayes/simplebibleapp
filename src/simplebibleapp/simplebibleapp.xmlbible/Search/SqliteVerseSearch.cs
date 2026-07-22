@@ -43,7 +43,8 @@ namespace simplebibleapp.xmlbible.search
                 return Enumerable.Empty<VerseInfo>();
             }
 
-            var dbPath = Path.Combine(_pathResolver.GetPath(), "bible.db");
+            var dataDir = Environment.GetEnvironmentVariable("DataplanePath") ?? _pathResolver.GetPath();
+            var dbPath = Path.Combine(dataDir, "bible.db");
             var connString = $"Data Source={dbPath}";
 
             var occurrences = new List<(string BookAbbr, int Chapter, int VerseNumber)>();
@@ -219,7 +220,8 @@ namespace simplebibleapp.xmlbible.search
                 return results;
             }
 
-            var dbPath = Path.Combine(_pathResolver.GetPath(), "bible.db");
+            var dataDir = Environment.GetEnvironmentVariable("DataplanePath") ?? _pathResolver.GetPath();
+            var dbPath = Path.Combine(dataDir, "bible.db");
             var connString = $"Data Source={dbPath}";
 
             using (var conn = new SqliteConnection(connString))

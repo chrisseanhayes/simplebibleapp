@@ -44,9 +44,9 @@ namespace simplebibleapp.xmlbible
             }
         }
 
-        public static void EnsureDbCreated(string dataPath, IEnumerable<IState> states)
+        public static void EnsureDbCreated(string xmlDataPath, string dbOutputPath, IEnumerable<IState> states)
         {
-            var dbPath = Path.Combine(dataPath, "bible.db");
+            var dbPath = Path.Combine(dbOutputPath, "bible.db");
             if (File.Exists(dbPath))
             {
                 return; // Already exists
@@ -106,8 +106,8 @@ namespace simplebibleapp.xmlbible
                 }
 
                 // Insert Books
-                var otPath = Path.Combine(dataPath, "OTBookNames.txt");
-                var ntPath = Path.Combine(dataPath, "NTBookNames.txt");
+                var otPath = Path.Combine(xmlDataPath, "OTBookNames.txt");
+                var ntPath = Path.Combine(xmlDataPath, "NTBookNames.txt");
 
                 if (!File.Exists(otPath) || !File.Exists(ntPath))
                 {
@@ -141,7 +141,7 @@ namespace simplebibleapp.xmlbible
                 }
 
                 // Parse and Insert Chapters & Words
-                var pathResolver = new DirectResolver(dataPath);
+                var pathResolver = new DirectResolver(xmlDataPath);
                 var builder = new ChapterBuilder(states, pathResolver);
                 var currentBook = "Gen";
                 var currentChapter = 1;

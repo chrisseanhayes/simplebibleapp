@@ -126,7 +126,11 @@ namespace simplebibleapp
             {
                 var pathResolver = scope.ServiceProvider.GetRequiredService<IXmlPathResolver>();
                 var states = scope.ServiceProvider.GetServices<IState>();
-                SqliteDbInitializer.EnsureDbCreated(pathResolver.GetPath(), states);
+                
+                var dataDir = Configuration["DataplanePath"] ?? pathResolver.GetPath();
+                if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+                
+                SqliteDbInitializer.EnsureDbCreated(pathResolver.GetPath(), dataDir, states);
 
                 // Ensure the Agy linguistic cache table exists in its own DB file
                 var agyCache = scope.ServiceProvider.GetRequiredService<AgyLinguisticCache>();
