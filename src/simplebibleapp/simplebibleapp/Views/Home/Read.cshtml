@@ -23,15 +23,15 @@
         <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">
             <ol class="breadcrumb-list">
                 <li class="breadcrumb-item">
-                    <a class="breadcrumb-button home-button" href="/">📖 Books</a>
+                    <a class="breadcrumb-button home-button" href="#" x-on:click.prevent="searchMenuVisible = true; searchView = 'books';">📖 Books</a>
                 </li>
                 <li class="breadcrumb-separator" aria-hidden="true">›</li>
                 <li class="breadcrumb-item">
-                    <a class="breadcrumb-button" href="@Url.Action("Book", new { id = Model.BookAbbr })">@bookName</a>
+                    <a class="breadcrumb-button" href="#" x-on:click.prevent="searchMenuVisible = true; selectSearchBook('@Model.BookAbbr', '@bookName')">@bookName</a>
                 </li>
                 <li class="breadcrumb-separator" aria-hidden="true">›</li>
                 <li class="breadcrumb-item">
-                    <span class="breadcrumb-button current">Chapter @Model.Chapter</span>
+                    <span class="breadcrumb-button current" style="cursor: pointer;" x-on:click="searchMenuVisible = true; selectSearchBook('@Model.BookAbbr', '@bookName').then(() => selectSearchChapter(@Model.Chapter));">Chapter @Model.Chapter</span>
                 </li>
             </ol>
         </nav>
@@ -62,15 +62,6 @@
         </div>
         
         <div class="read-nav-actions">
-            <!-- Search Sidebar Toggle -->
-            <button class="btn-sidebar-toggle" 
-                    x-bind:class="{ 'active': searchMenuVisible }" 
-                    x-on:click="searchMenuVisible = !searchMenuVisible"
-                    title="Toggle Book Navigation">
-                <i class="fas fa-bars"></i>
-                <span>Books</span>
-            </button>
-
             <!-- Dictionary/Strong's Sidebar Toggle -->
             <button class="btn-dict-toggle" 
                     x-bind:class="{ 'active': !fullbible }" 
