@@ -66,25 +66,9 @@
             <button class="btn-dict-toggle" 
                     x-bind:class="{ 'active': !fullbible }" 
                     x-on:click="fullbible = !fullbible"
-                    title="Toggle Dictionary Sidebar">
-                <i class="fas fa-search-plus"></i>
-                <span x-text="fullbible ? 'Show Dictionary' : 'Hide Dictionary'">Dictionary</span>
-            </button>
-
-            <!-- Synonym Engine Button -->
-            <button class="btn-syn-toggle"
-                    x-bind:class="{ 'active': synonymVisible }"
-                    x-on:click="
-                        if (activeRef && synonymConnectionId) {
-                            const lang = activeRef.startsWith('H') ? 'Hebrew' : 'Greek';
-                            if (fullbible) fullbible = false;
-                            loadSynonyms(activeRef, '@Model.ChapterHeading', '', lang);
-                        }"
-                    x-bind:disabled="!activeRef || !synonymConnectionId"
-                    title="Analyse synonyms &amp; semantic network for selected word">
-                <i class="fas fa-project-diagram" x-show="synonymConnectionId"></i>
-                <i class="fas fa-spinner fa-spin" x-show="!synonymConnectionId"></i>
-                <span x-text="!synonymConnectionId ? 'Connecting...' : 'Synonyms'">Synonyms</span>
+                    title="Toggle Right Sidebar"
+                    style="padding: 0.5rem; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 6px;">
+                <i class="fas" x-bind:class="fullbible ? 'fa-columns' : 'fa-times'"></i>
             </button>
         </div>
     </div>
