@@ -39,27 +39,37 @@
 
     <!-- Chapter Heading & Navigation Controls -->
     <div class="read-controls-bar">
-        <h2 class="read-heading">@Model.ChapterHeading</h2>
-        
-        <div class="read-nav-actions">
-            <!-- Previous / Next Chapter Buttons -->
+        <div class="chapter-header-group" style="display: flex; align-items: center; gap: 1rem;">
             @if (Model.HasPreviousChapter)
             {
-                <a class="btn-chapter-nav" 
+                <a class="btn-chapter-nav btn-sm" 
                    href="@Url.Action("Read", new { bookAbbr = Model.PreviousChapterBookAbbr, chapter = Model.PreviousChapterNumber })"
                    title="Previous Chapter">
-                    <i class="fas fa-chevron-left"></i> Prev
+                    <i class="fas fa-chevron-left"></i>
                 </a>
             }
             
+            <h2 class="read-heading" style="margin: 0;">@Model.ChapterHeading</h2>
+            
             @if (Model.HasNextChapter)
             {
-                <a class="btn-chapter-nav" 
+                <a class="btn-chapter-nav btn-sm" 
                    href="@Url.Action("Read", new { bookAbbr = Model.NextChapterBookAbbr, chapter = Model.NextChapterNumber })"
                    title="Next Chapter">
-                    Next <i class="fas fa-chevron-right"></i>
+                    <i class="fas fa-chevron-right"></i>
                 </a>
             }
+        </div>
+        
+        <div class="read-nav-actions">
+            <!-- Search Sidebar Toggle -->
+            <button class="btn-sidebar-toggle" 
+                    x-bind:class="{ 'active': searchMenuVisible }" 
+                    x-on:click="searchMenuVisible = !searchMenuVisible"
+                    title="Toggle Book Navigation">
+                <i class="fas fa-bars"></i>
+                <span>Books</span>
+            </button>
 
             <!-- Dictionary/Strong's Sidebar Toggle -->
             <button class="btn-dict-toggle" 
@@ -74,21 +84,90 @@
             <button class="btn-syn-toggle"
                     x-bind:class="{ 'active': synonymVisible }"
                     x-on:click="
-                        if (activeRef) {
+                        if (activeRef && synonymConnectionId) {
                             const lang = activeRef.startsWith('H') ? 'Hebrew' : 'Greek';
                             if (fullbible) fullbible = false;
                             loadSynonyms(activeRef, '@Model.ChapterHeading', '', lang);
                         }"
-                    x-bind:disabled="!activeRef"
+                    x-bind:disabled="!activeRef || !synonymConnectionId"
                     title="Analyse synonyms &amp; semantic network for selected word">
-                <i class="fas fa-project-diagram"></i>
-                <span>Synonyms</span>
+                <i class="fas fa-project-diagram" x-show="synonymConnectionId"></i>
+                <i class="fas fa-spinner fa-spin" x-show="!synonymConnectionId"></i>
+                <span x-text="!synonymConnectionId ? 'Connecting...' : 'Synonyms'">Synonyms</span>
             </button>
         </div>
     </div>
 
     <!-- Text reading pane & sidebar -->
     <div id="bible-content" class="bible-read">
+        <!-- Book Search Menu Sidebar -->
+        <div id="bible-search-menu" class="bible-search-sidebar" x-show="searchMenuVisible" x-transition x-cloak>
+            <div class="search-sidebar-header">
+                <h3>
+                    <template x-if="searchView === 'books'"><span>Books</span></template>
+                    <template x-if="searchView !== 'books'">
+                        <span>
+                            <button class="btn btn-sm btn-light" x-on:click="resetSearch()" style="padding: 0 4px; border: none; background: transparent; color: var(--primary);">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <span x-text="selectedSearchBookName"></span>
+                        </span>
+                    </template>
+                </h3>
+                <button class="btn-close-sidebar" x-on:click="searchMenuVisible = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="search-sidebar-content" style="flex: 1; overflow-y: auto;">
+                <!-- Books View -->
+                <div class="books-tight-grid" x-show="searchView === 'books'">
+                    @foreach(var book in Model.Books ?? new List<simplebibleapp.xmlbiblerepository.BookListItem>())
+                    {
+                        var isCurrent = book.SearchAbbr == Model.BookAbbr;
+                        <a href="javascript:void(0)" x-on:click="selectSearchBook('@book.SearchAbbr', '@book.BookName')" 
+                           class="book-tight-btn @(isCurrent ? "active" : "") category-@book.Testament.ToLower()"
+                           title="@book.BookName">
+                            <span class="book-id">@(book.SearchAbbr.Length > 3 ? book.SearchAbbr.Substring(0, 3) : book.SearchAbbr)</span>
+                        </a>
+                    }
+                </div>
+                
+                <!-- Loading View -->
+                <div x-show="searchView === 'loading'" class="text-center p-4">
+                    <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                </div>
+                
+                <!-- Chapters View -->
+                <div x-show="searchView === 'chapters'" class="p-2">
+                    <div class="chapters-tight-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
+                        <template x-for="chap in searchChapters" :key="chap">
+                            <button class="btn btn-sm"
+                                    :class="selectedSearchBook === '@Model.BookAbbr' && chap === @Model.Chapter ? 'btn-primary' : 'btn-light'"
+                                    x-on:click="selectSearchChapter(chap)"
+                                    x-text="chap"
+                                    style="width: 100%; aspect-ratio: 1; padding: 0; display: flex; align-items: center; justify-content: center; color: var(--text-primary); border: none; font-size: 0.85rem; font-weight: normal;"></button>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Verses View -->
+                <div x-show="searchView === 'verses'" class="p-2">
+                    <div style="margin-bottom: 8px; font-size: 0.85rem; font-weight: bold; color: var(--text-muted); cursor: pointer;" x-on:click="searchView = 'chapters'">
+                        <i class="fas fa-arrow-left"></i> Chapter <span x-text="searchVerses.length ? (searchVerses[0].chapter || searchVerses[0].Chapter) : ''"></span>
+                    </div>
+                    <div class="verses-tight-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
+                        <template x-for="v in searchVerses" :key="v.verse || v.Verse">
+                            <a :href="'/Home/Read?bookAbbr=' + encodeURIComponent(v.bookAbbreviation || v.BookAbbreviation) + '&chapter=' + (v.chapter || v.Chapter) + '#vs-' + (v.verse || v.Verse)"
+                               class="btn btn-sm btn-light"
+                               style="width: 100%; aspect-ratio: 1; padding: 0; display: flex; align-items: center; justify-content: center; text-decoration: none; color: var(--text-primary);"
+                               x-text="v.verse || v.Verse"
+                               x-on:click="searchMenuVisible = false"></a>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="bible-left" class="bible-text" x-bind:style="fullbible ? 'flex: 1;' : 'flex: 1;'">
             <div class="bible-text-content">
                 @Html.Partial("BibleNode", new BibleChapterReading { BibleNode = Model.BibleNode })
@@ -137,128 +216,166 @@
             </div>
         </div>
         
-        <div id="bible-right" x-show="!fullbible" x-transition x-cloak>
-            <div id="defs" class="bible-def-sticky"></div>
-            
-            <div x-show="defload" class="text-center py-4">
-                <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+        <div id="bible-right" x-show="!fullbible" x-transition x-cloak style="display: flex; flex-direction: column;" x-data="{ sidebarTab: 'definition' }">
+            <div class="search-sidebar-header">
+                <h3>Dictionary</h3>
+                <button class="btn-close-sidebar" x-on:click="fullbible = true">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             
-            <div class="word-usage-excluded alert alert-info my-3" x-show="isExcluded" x-transition>
-                <i class="fas fa-info-circle mr-1"></i>
-                Common conjunctions, prepositions, and articles are currently excluded from search to optimize performance.
+            <!-- Main Sidebar Tabs (Definition, Occurrences, Usage, Synonyms) -->
+            <div class="sidebar-main-tabs" style="display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color);">
+                <button class="btn btn-link" :class="sidebarTab === 'definition' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'definition'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Definition</button>
+                <button class="btn btn-link" :class="sidebarTab === 'occurrences' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'occurrences'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Occurrences</button>
+                <button class="btn btn-link" :class="sidebarTab === 'usage' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'usage'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Usage</button>
+                <button class="btn btn-link" :class="sidebarTab === 'synonyms' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'synonyms'" style="flex: 1; padding: 8px; color: var(--text-primary); text-decoration: none;">Synonyms</button>
             </div>
-            
-            <div class="word-usage-container" x-show="!isExcluded && (wordRefs.length > 0 || bookOccurrences.length > 0)">
-                <h4 class="usage-title">Word usage:</h4>
 
-                <div class="word-usage-books my-3" x-show="bookOccurrences.length > 1">
-                    <div class="text-muted small font-weight-bold mb-1">Occurrences in other books:</div>
-                    <div class="d-flex flex-wrap" style="gap: 4px; margin-bottom: 12px;">
-                        <template x-for="occ in bookOccurrences" x-bind:key="occ.bookAbbr">
-                            <button class="btn btn-xs"
-                                    :class="selectedUsageBook === occ.bookAbbr ? 'btn-primary' : 'btn-light'"
-                                    @@click="selectUsageBook(occ.bookAbbr)"
-                                    style="padding: 2px 6px; font-size: 0.75rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span x-text="occ.bookAbbr"></span>
-                                <span class="badge" :class="selectedUsageBook === occ.bookAbbr ? 'badge-light text-primary' : 'badge-secondary'" x-text="occ.count"></span>
-                            </button>
+            <div class="bible-right-content" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+                
+                <!-- Definition Tab -->
+                <div x-show="sidebarTab === 'definition'" style="display: flex; flex-direction: column; height: 100%;">
+                    <!-- Multi-Lemma Definition Tabs -->
+                    <div class="def-tabs-header" x-show="htmlItems.length > 1" style="display: flex; gap: 4px; padding: 8px; background: var(--bg-card-hover); border-bottom: 1px solid var(--border-color); overflow-x: auto;">
+                        <template x-for="item in htmlItems" :key="item.ref">
+                            <button class="btn btn-sm"
+                                    :class="defActiveTab === item.ref ? 'btn-primary' : 'btn-light'"
+                                    x-on:click="defActiveTab = item.ref; loadRef(item.ref, true);"
+                                    x-text="item.ref"
+                                    style="border-radius: 12px; padding: 2px 10px; font-size: 0.8rem;"></button>
+                        </template>
+                    </div>
+                    
+                    <div class="def-tab-content bible-def-sticky" style="flex: 1; overflow-y: auto; padding: 10px;">
+                        <template x-for="item in htmlItems" :key="item.ref">
+                            <div x-show="defActiveTab === item.ref" x-html="item.html"></div>
+                        </template>
+                        
+                        <div x-show="defload" class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Occurrences Tab -->
+                <div x-show="sidebarTab === 'occurrences'" style="padding: 10px;">
+                    <div class="word-usage-excluded alert alert-info my-3" x-show="isExcluded">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Common conjunctions, prepositions, and articles are currently excluded from search to optimize performance.
+                    </div>
+                    
+                    <div class="word-usage-container" x-show="!isExcluded && bookOccurrences.length > 0">
+                        <h4 class="usage-title">Book Occurrences:</h4>
+                        <div class="d-flex flex-wrap" style="gap: 4px; margin-top: 12px;">
+                            <template x-for="occ in bookOccurrences" x-bind:key="occ.bookAbbr">
+                                <button class="btn btn-xs"
+                                        :class="selectedUsageBook === occ.bookAbbr ? 'btn-primary' : 'btn-light'"
+                                        x-on:click="selectUsageBook(occ.bookAbbr); sidebarTab = 'usage';"
+                                        style="padding: 4px 8px; font-size: 0.85rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span x-text="occ.bookAbbr"></span>
+                                    <span class="badge" :class="selectedUsageBook === occ.bookAbbr ? 'badge-light text-primary' : 'badge-secondary'" x-text="occ.count"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Usage Tab -->
+                <div x-show="sidebarTab === 'usage'" style="padding: 10px;">
+                    <div class="word-usage-container" x-show="!isExcluded && wordRefs.length > 0">
+                        <div class="text-muted small font-weight-bold mb-2">
+                            Showing occurrences in <span x-text="selectedUsageBook"></span>:
+                        </div>
+
+                        <template x-for="verse in wordRefs" x-bind:key="verse.chapterAbbr + '.' + verse.chapterNumber + '.' + verse.verseNumber">
+                            <a :href="`/Home/Read?bookAbbr=${encodeURIComponent(verse.chapterAbbr)}&chapter=${verse.chapterNumber}#vs-${verse.verseNumber}`"
+                               class="usage-ref"
+                               x-on:click="if (verse.chapterAbbr.toLowerCase() === bookAbbr.toLowerCase() && verse.chapterNumber === chapter) { $event.preventDefault(); window.location.hash = 'vs-' + verse.verseNumber; }">
+                                <span x-text="verse.chapterAbbr"></span>
+                                <span x-text="verse.chapterNumber"></span>:<span x-text="verse.verseNumber"></span>
+                                &quot;<span x-html="decode(verse.verseXmlText)"></span>&quot;
+                            </a>
                         </template>
                     </div>
                 </div>
 
-                <div class="text-muted small font-weight-bold mb-2" x-show="wordRefs.length > 0">
-                    Showing occurrences in <span x-text="selectedUsageBook"></span>:
-                </div>
-
-                <template x-for="verse in wordRefs" x-bind:key="verse.chapterAbbr + '.' + verse.chapterNumber + '.' + verse.verseNumber">
-                    <a :href="`/Home/Read?bookAbbr=${encodeURIComponent(verse.chapterAbbr)}&chapter=${verse.chapterNumber}#vs-${verse.verseNumber}`"
-                       class="usage-ref"
-                       @@click="if (verse.chapterAbbr.toLowerCase() === bookAbbr.toLowerCase() && verse.chapterNumber === chapter) { $event.preventDefault(); window.location.hash = 'vs-' + verse.verseNumber; }">
-                        <span x-text="verse.chapterAbbr"></span>
-                        <span x-text="verse.chapterNumber"></span>:<span x-text="verse.verseNumber"></span>
-                        &quot;<span x-html="decode(verse.verseXmlText)"></span>&quot;
-                    </a>
-                </template>
-            </div>
-
-            <!-- ── Synonym / Linguistic Engine Panel ─────────────────────── -->
-            <div class="syn-panel" x-show="synonymVisible" x-transition>
-                <!-- Header -->
-                <div class="syn-panel-header">
-                    <div class="syn-panel-title">
-                        <i class="fas fa-project-diagram"></i>
-                        Semantic Network
-                        <span class="syn-ref-badge" x-text="synonymActiveRef"></span>
-                    </div>
-                    <button class="syn-close" x-on:click="closeSynonyms()" title="Close synonym panel">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-
-                <!-- Loading -->
-                <div class="syn-loading" x-show="synonymLoading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Analysing with Gemini&hellip;</span>
-                </div>
-
-                <!-- Error -->
-                <div class="syn-error" x-show="!synonymLoading && synonymError" x-text="synonymError"></div>
-
-                <!-- Results -->
-                <div x-show="!synonymLoading && synonymData">
-
-                    <!-- Target Selection card -->
-                    <div class="syn-card" x-show="synonymData?.target_selection">
-                        <div class="syn-lemma" x-text="synonymData?.target_selection?.anchor_lemma"></div>
-                        <div class="syn-translit" x-text="synonymData?.target_selection?.transliteration"></div>
-                        <div class="syn-gloss" x-text="'\u201c' + (synonymData?.target_selection?.contextual_gloss || '') + '\u201d'"></div>
-                    </div>
-
-                    <!-- Exegetical Context -->
-                    <div class="syn-section" x-show="synonymData?.exegetical_context">
-                        <div class="syn-section-label">Exegetical Context</div>
-                        <div class="syn-context-row">
-                            <span class="syn-context-key">Role:</span>
-                            <span x-text="synonymData?.exegetical_context?.immediate_context_role"></span>
+                <!-- Synonyms Tab -->
+                <div x-show="sidebarTab === 'synonyms'" style="padding: 10px;">
+                    <div class="syn-panel" style="display: block; position: static; box-shadow: none; border: none; height: auto;">
+                        <div class="syn-panel-header" x-show="synonymData">
+                            <div class="syn-panel-title">
+                                <i class="fas fa-project-diagram"></i>
+                                Semantic Network
+                                <span class="syn-ref-badge" x-text="synonymActiveRef"></span>
+                            </div>
                         </div>
-                        <div class="syn-context-row">
-                            <span class="syn-context-key">Function:</span>
-                            <span x-text="synonymData?.exegetical_context?.local_thematic_function"></span>
-                        </div>
-                        <div class="syn-context-row">
-                            <span class="syn-context-key">Canon:</span>
-                            <span x-text="synonymData?.exegetical_context?.canonical_trajectory_summary"></span>
-                        </div>
-                    </div>
 
-                    <!-- Synonym Network -->
-                    <div class="syn-section" x-show="synonymData?.synonym_network?.length > 0">
-                        <div class="syn-section-label">Synonym Network</div>
-                        <div class="syn-network-grid">
-                            <template x-for="(node, i) in (synonymData?.synonym_network || [])" :key="node.strongs + i">
-                                <div class="syn-node"
-                                     x-bind:class="'rel-' + node.relationship"
-                                     x-on:click="loadRef(node.strongs)">
-                                    <div class="syn-node-top">
-                                        <span class="syn-node-lemma" x-text="node.lemma"></span>
-                                        <span class="syn-node-strongs" x-text="node.strongs"></span>
-                                    </div>
-                                    <div class="syn-node-translit" x-text="node.transliteration"></div>
-                                    <div class="syn-node-gloss" x-text="node.primary_gloss"></div>
-                                    <div class="syn-node-meta">
-                                        <span class="syn-rel-badge" x-text="relationshipLabel(node.relationship)"></span>
-                                        <span class="syn-conf-badge" x-bind:class="confidenceClass(node.contextual_confidence)" x-text="Math.round(node.contextual_confidence * 100) + '%'"></span>
-                                    </div>
-                                    <div class="syn-node-notes" x-show="node.thematic_alignment_notes" x-text="node.thematic_alignment_notes"></div>
+                        <div class="syn-loading" x-show="synonymLoading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Analysing with Gemini&hellip;</span>
+                        </div>
+
+                        <div class="syn-error" x-show="!synonymLoading && synonymError" x-text="synonymError"></div>
+
+                        <div class="text-center py-4" x-show="!synonymLoading && !synonymData && activeRef">
+                            <button class="btn btn-primary btn-sm" x-on:click="
+                                const lang = activeRef.startsWith('H') ? 'Hebrew' : 'Greek';
+                                loadSynonyms(activeRef, '@Model.ChapterHeading', '', lang);
+                            ">
+                                <i class="fas fa-project-diagram"></i> Generate Semantic Network
+                            </button>
+                        </div>
+
+                        <div x-show="!synonymLoading && synonymData">
+                            <div class="syn-card" x-show="synonymData?.target_selection">
+                                <div class="syn-lemma" x-text="synonymData?.target_selection?.anchor_lemma"></div>
+                                <div class="syn-translit" x-text="synonymData?.target_selection?.transliteration"></div>
+                                <div class="syn-gloss" x-text="'\u201c' + (synonymData?.target_selection?.contextual_gloss || '') + '\u201d'"></div>
+                            </div>
+
+                            <div class="syn-section" x-show="synonymData?.exegetical_context">
+                                <div class="syn-section-label">Exegetical Context</div>
+                                <div class="syn-context-row">
+                                    <span class="syn-context-key">Role:</span>
+                                    <span x-text="synonymData?.exegetical_context?.immediate_context_role"></span>
                                 </div>
-                            </template>
+                                <div class="syn-context-row">
+                                    <span class="syn-context-key">Function:</span>
+                                    <span x-text="synonymData?.exegetical_context?.local_thematic_function"></span>
+                                </div>
+                                <div class="syn-context-row">
+                                    <span class="syn-context-key">Canon:</span>
+                                    <span x-text="synonymData?.exegetical_context?.canonical_trajectory_summary"></span>
+                                </div>
+                            </div>
+
+                            <div class="syn-section" x-show="synonymData?.synonym_network?.length > 0">
+                                <div class="syn-section-label">Synonym Network</div>
+                                <div class="syn-network-grid">
+                                    <template x-for="(node, i) in (synonymData?.synonym_network || [])" :key="node.strongs + i">
+                                        <div class="syn-node"
+                                             x-bind:class="'rel-' + node.relationship"
+                                             x-on:click="loadRef(node.strongs)">
+                                            <div class="syn-node-top">
+                                                <span class="syn-node-lemma" x-text="node.lemma"></span>
+                                                <span class="syn-node-strongs" x-text="node.strongs"></span>
+                                            </div>
+                                            <div class="syn-node-translit" x-text="node.transliteration"></div>
+                                            <div class="syn-node-gloss" x-text="node.primary_gloss"></div>
+                                            <div class="syn-node-meta">
+                                                <span class="syn-rel-badge" x-text="relationshipLabel(node.relationship)"></span>
+                                                <span class="syn-conf-badge" x-bind:class="confidenceClass(node.contextual_confidence)" x-text="Math.round(node.contextual_confidence * 100) + '%'"></span>
+                                            </div>
+                                            <div class="syn-node-notes" x-show="node.thematic_alignment_notes" x-text="node.thematic_alignment_notes"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
                 </div>
             </div>
-            <!-- ── /Synonym Panel ─────────────────────────────────────────── -->
         </div>
     </div>
 </div>

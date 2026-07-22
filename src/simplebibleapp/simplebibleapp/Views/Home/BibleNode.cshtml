@@ -13,7 +13,7 @@
 Func<EndVerseNode, IHtmlContent> renderEndNode = @<br/>;
 
 Func<WordNode, IHtmlContent> renderWordNode =
-    @<em class="word-ref" @@click="getref('@item.Lemma')"
+    @<em class="word-ref" @@click="getref('@item.Lemma', $event)"
     :class="{selectedLemma:isSelectedLemma('@item.Lemma')}">
     @if (item.SubNodes.Any())
     {

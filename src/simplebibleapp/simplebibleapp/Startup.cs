@@ -23,6 +23,7 @@ using simplebibleapp.xmldatacore;
 using simplebibleapp.xmldictionary;
 using Microsoft.Extensions.Caching;
 using NLog.Extensions.Logging;
+using simplebibleapp.Hubs;
 
 namespace simplebibleapp
 {
@@ -42,6 +43,7 @@ namespace simplebibleapp
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+            services.AddSignalR();
 
             // In-memory cache for the synonym engine (avoids repeated Gemini CLI calls)
             services.AddMemoryCache();
@@ -148,6 +150,7 @@ namespace simplebibleapp
                 endpoints.MapControllerRoute(
                     "default",
                     "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapHub<LinguisticHub>("/linguisticHub");
             });
         }
     }

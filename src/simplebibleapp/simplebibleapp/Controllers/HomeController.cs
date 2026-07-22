@@ -23,6 +23,9 @@ using simplebibleapp.xmlbiblerepository;
 using simplebibleapp.xmldictionary;
 using StackExchange.Redis;
 using LogLevel = NLog.LogLevel;
+using Microsoft.AspNetCore.SignalR;
+using simplebibleapp.Hubs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace simplebibleapp.Controllers
 {
@@ -35,6 +38,7 @@ namespace simplebibleapp.Controllers
         private readonly IWordCountBuilder _wordCountBuilder;
         private readonly IVerseSearch _verseSearch;
         private readonly IAgyLinguisticService _linguisticService;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
         public HomeController(
             IChapterBuilderFactory factory,
@@ -42,7 +46,8 @@ namespace simplebibleapp.Controllers
             IDictionaryRepository dictionaryRepository,
             IWordCountBuilderFactory wordCountBuilderFactory,
             IVerseSearch verseSearch,
-            IAgyLinguisticService linguisticService)
+            IAgyLinguisticService linguisticService,
+            IServiceScopeFactory serviceScopeFactory)
         {
             _builder = factory.GetBuilder();
             _bookNameRepository = bookNameRepository;
@@ -50,6 +55,7 @@ namespace simplebibleapp.Controllers
             _wordCountBuilder = wordCountBuilderFactory.GetBuilder();
             _verseSearch = verseSearch;
             _linguisticService = linguisticService;
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
         [HttpGet]
@@ -98,6 +104,13 @@ namespace simplebibleapp.Controllers
         }
 
         [HttpGet]
+        public IActionResult GetBookVerses(string id)
+        {
+            var verses = _bookNameRepository.GetSelectableVerses(id).ToArray();
+            return Json(verses);
+        }
+
+        [HttpGet]
         public ActionResult Read(string bookAbbr, int chapter)
         {
             var biblechapter = _builder.GetChapter(bookAbbr, chapter);
@@ -117,7 +130,8 @@ namespace simplebibleapp.Controllers
                 NextChapterBookAbbr = _builder.NextBookAbbr,
                 NextChapterNumber = _builder.NextChapterNumber,
                 WordInfos = new WordInfo[0],
-                SelectableVerses = _bookNameRepository.GetSelectableVerses(bookAbbr).ToArray()
+                SelectableVerses = _bookNameRepository.GetSelectableVerses(bookAbbr).ToArray(),
+                Books = _bookNameRepository.GetBooks()
             };
             return View(vm);
         }
@@ -162,35 +176,57 @@ namespace simplebibleapp.Controllers
         /// <param name="lemma">Lemma text, e.g. "λόγος"</param>
         /// <param name="language">"Greek" or "Hebrew"</param>
         [HttpGet]
-        public async Task<IActionResult> GetSynonyms(
+        public IActionResult GetSynonyms(
             string reference,
             string strongs,
             string lemma,
             string language,
-            CancellationToken cancellationToken = default)
+            string connectionId)
         {
             if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(strongs))
                 return BadRequest(new { error = "'reference' and 'strongs' parameters are required." });
+            if (string.IsNullOrWhiteSpace(connectionId))
+                return BadRequest(new { error = "'connectionId' parameter is required." });
 
-            try
+            // Run in background and return immediately
+            Task.Run(async () =>
             {
-                var result = await _linguisticService.AnalyzeTokenAsync(
-                    reference, strongs, lemma ?? string.Empty, language ?? "Greek", cancellationToken);
+                try
+                {
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var linguisticService = scope.ServiceProvider.GetRequiredService<IAgyLinguisticService>();
+                    var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<LinguisticHub>>();
 
-                if (result is null)
-                    return StatusCode(500, new { error = "Gemini CLI analysis returned no result." });
+                    var result = await linguisticService.AnalyzeTokenAsync(
+                        reference, strongs, lemma ?? string.Empty, language ?? "Greek", CancellationToken.None);
 
-                return Json(result);
-            }
-            catch (OperationCanceledException)
-            {
-                return StatusCode(499, new { error = "Request cancelled." });
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "GetSynonyms failed for {Strongs} / {Reference}", strongs, reference);
-                return StatusCode(500, new { error = "Internal error during synonym analysis." });
-            }
+                    if (result is null)
+                    {
+                        await hubContext.Clients.Client(connectionId).SendAsync("ReceiveSynonymsError", new { error = "Gemini CLI analysis returned no result." });
+                    }
+                    else
+                    {
+                        await hubContext.Clients.Client(connectionId).SendAsync("ReceiveSynonyms", result);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Ignore cancelled in background
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "GetSynonyms background failed for {Strongs} / {Reference}", strongs, reference);
+                    try
+                    {
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<LinguisticHub>>();
+                        await hubContext.Clients.Client(connectionId).SendAsync("ReceiveSynonymsError", new { error = "Internal error during synonym analysis." });
+                    }
+                    catch { }
+                }
+            });
+
+            return Json(new { status = "processing" });
         }
 
         private T ParseByDictionary<T>(Func<int,T> forGreekDefinition, Func<int,T> forHebrewDefinition, Func<T> defaultAction, string id){

@@ -23,39 +23,18 @@
         <p class="book-subtitle">Select a chapter to start reading, or expand a chapter to jump to a specific verse.</p>
     </div>
 
-    <div class="chapters-grid">
+    <div class="chapters-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 2rem;">
         @foreach (var chapter in Model.SelectableVerses.GroupBy(v => v.Chapter))
         {
             var firstVerse = chapter.First();
             var chapterKey = chapter.Key;
             
-            <div class="chapter-card" x-bind:class="{ 'expanded': activeChapter === @(chapterKey) }">
-                <div class="chapter-card-header">
-                    <a class="chapter-link-btn" href="@Url.Action("Read", new { bookAbbr = firstVerse.BookAbbreviation, chapter = chapterKey })" title="Read Chapter @chapterKey">
-                        <span class="chapter-label">Chapter</span>
-                        <span class="chapter-number">@chapterKey</span>
-                    </a>
-                    <button class="chapter-expand-toggle" 
-                            x-on:click="activeChapter = (activeChapter === @(chapterKey) ? null : @(chapterKey))"
-                            x-bind:aria-expanded="activeChapter === @(chapterKey) ? 'true' : 'false'"
-                            title="Toggle verses list">
-                        <i class="fas fa-chevron-down" x-bind:style="activeChapter === @(chapterKey) ? 'transform: rotate(180deg)' : 'transition: transform 0.2s ease'"></i>
-                    </button>
-                </div>
-                
-                <div class="chapter-verses-panel" x-show="activeChapter === @(chapterKey)" x-collapse x-cloak>
-                    <div class="verses-grid">
-                        @foreach (var verse in chapter)
-                        {
-                            <a class="verse-selector-btn" 
-                               href="@Url.Action("Read", new { bookAbbr = verse.BookAbbreviation, chapter = verse.Chapter })#vs-@verse.Verse"
-                               title="Read verse @verse.Verse">
-                                @verse.Verse
-                            </a>
-                        }
-                    </div>
-                </div>
-            </div>
+            <a class="btn btn-light" 
+               href="@Url.Action("Read", new { bookAbbr = firstVerse.BookAbbreviation, chapter = chapterKey })" 
+               title="Read Chapter @chapterKey"
+               style="width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: bold; border-radius: 8px; color: var(--text-primary); text-decoration: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                @chapterKey
+            </a>
         }
     </div>
 </div>

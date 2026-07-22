@@ -7,8 +7,10 @@ const EXCLUDED_STRONGS = new Set([
 document.addEventListener('alpine:init', () => {
     Alpine.data('readApp', () => ({
         fullbible: false,
+        searchMenuVisible: false,
         defload: false,
-        htmlItems: [], // List of active strongs reference numbers loaded (e.g. ['G3068'])
+        htmlItems: [], // List of active strongs reference objects e.g. [{ ref: 'G3068', html: '...' }]
+        defActiveTab: null, // The currently active tab ref
         wordRefs: [],  // Statistics of usage for the current ref
         bookAbbr: '',
         chapter: 1,
@@ -16,6 +18,15 @@ document.addEventListener('alpine:init', () => {
         isExcluded: false,
         bookOccurrences: [],
         selectedUsageBook: '',
+        
+        // ── Book Search State ──────────────────────────────────────────────
+        searchView: 'books', // 'books', 'loading', 'chapters', 'verses'
+        selectedSearchBook: '',
+        selectedSearchBookName: '',
+        searchChapters: [],
+        searchVerses: [],
+        allBookVerses: null, // Map of chapter -> verses
+
 
         // ── Synonym / Linguistic Engine state ──────────────────────────────
         synonymData: null,       // AgyLinguisticPayloadDto from the API
@@ -23,6 +34,8 @@ document.addEventListener('alpine:init', () => {
         synonymError: null,      // error string or null
         synonymVisible: false,   // whether the synonym panel is shown
         synonymActiveRef: '',    // which strongs triggered the current analysis
+        synonymConnectionId: null,
+        synonymHub: null,
 
         getSavedLemma() {
             try {
@@ -48,14 +61,14 @@ document.addEventListener('alpine:init', () => {
             this.bookAbbr = bookAbbr;
             this.chapter = chapter;
 
-            // Setup event delegation on the #defs container for dynamic HTML elements
-            const defsContainer = document.getElementById('defs');
+            // Setup event delegation on the .def-tab-content container for dynamic HTML elements
+            const defsContainer = document.querySelector('.def-tab-content');
             if (defsContainer) {
                 defsContainer.addEventListener('click', (e) => {
                     const closeBtn = e.target.closest('.defclose');
                     if (closeBtn) {
                         const strongNum = closeBtn.getAttribute('data-strong');
-                        this.closedef(strongNum, closeBtn);
+                        this.closedef(strongNum);
                     }
                     
                     const alsoSee = e.target.closest('.also-see');
@@ -88,6 +101,29 @@ document.addEventListener('alpine:init', () => {
             setTimeout(() => {
                 this.highlightTargetedVerse();
             }, 150);
+
+            // Initialize SignalR connection for async synonym generation
+            if (typeof signalR !== 'undefined') {
+                this.synonymHub = new signalR.HubConnectionBuilder()
+                    .withUrl("/linguisticHub")
+                    .withAutomaticReconnect()
+                    .build();
+
+                this.synonymHub.on("ReceiveSynonyms", (data) => {
+                    this.synonymData = data;
+                    this.synonymLoading = false;
+                });
+
+                this.synonymHub.on("ReceiveSynonymsError", (err) => {
+                    this.synonymError = err.error || "Unknown error from server.";
+                    this.synonymLoading = false;
+                });
+
+                this.synonymHub.start().then(() => {
+                    this.synonymConnectionId = this.synonymHub.connectionId;
+                    console.log("SignalR connected with ID:", this.synonymConnectionId);
+                }).catch(err => console.error("SignalR Connection Error: ", err));
+            }
         },
 
         // Scan the DOM and highlight the targeted verse based on the URL anchor
@@ -129,7 +165,7 @@ document.addEventListener('alpine:init', () => {
             // lemmas is a space-separated list of refs, e.g. "strong:G3068 strong:G1234"
             const items = lemmas.split(' ').map(el => el.split(':')[1]);
             // Check if any of these lemmas are in the active loaded htmlItems list
-            return items.some(item => this.htmlItems.includes(item));
+            return items.some(item => this.htmlItems.some(h => h.ref === item));
         },
 
         // Check if a specific verse should be highlighted in the minimap
@@ -143,23 +179,40 @@ document.addEventListener('alpine:init', () => {
         },
 
         // Click handler to load references for a word
-        async getref(lemma) {
+        async getref(lemma, event) {
             if (!lemma) return;
-            this.setSavedLemma(lemma);
             this.htmlItems = [];
-            const defsContainer = document.getElementById('defs');
-            if (defsContainer) defsContainer.innerHTML = '';
+            this.defActiveTab = null;
             
             const defs = lemma.split(' ');
-            for (let i = 0; i < defs.length; i++) {
-                const num = defs[i].split(':')[1];
+            let targetDefs = defs;
+            
+            // If it's a multi-lemma word phrase, filter out excluded words (like common articles) 
+            // unless the user is holding Alt/Option key.
+            const showAll = event && event.altKey;
+            
+            if (defs.length > 1 && !showAll) {
+                const filteredDefs = defs.filter(d => !EXCLUDED_STRONGS.has(d.split(':')[1]));
+                // If filtering removed all of them, just fallback to the original list
+                if (filteredDefs.length > 0) {
+                    targetDefs = filteredDefs;
+                }
+            }
+
+            this.setSavedLemma(targetDefs.join(' '));
+
+            for (let i = 0; i < targetDefs.length; i++) {
+                const num = targetDefs[i].split(':')[1];
                 await this.loadRef(num);
             }
         },
 
         // Helper to load definition HTML and stats
-        async loadRef(refnum) {
-            if (this.htmlItems.includes(refnum)) return;
+        async loadRef(refnum, skipHtmlPush = false) {
+            if (!skipHtmlPush && this.htmlItems.some(h => h.ref === refnum)) {
+                this.defActiveTab = refnum;
+                return;
+            }
             this.defload = true;
             this.activeRef = refnum;
             this.selectedUsageBook = this.bookAbbr;
@@ -173,9 +226,11 @@ document.addEventListener('alpine:init', () => {
                     const defResponse = await fetch('/Home/GetStrongRef/' + refnum);
                     if (defResponse.ok) {
                         const html = await defResponse.text();
-                        this.htmlItems.push(refnum);
-                        this.addRefHtml(html);
-                        this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item).join(' '));
+                        if (!skipHtmlPush) {
+                            this.htmlItems.push({ ref: refnum, html: html });
+                        }
+                        if (!this.defActiveTab) this.defActiveTab = refnum;
+                        this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item.ref).join(' '));
                     }
                 } catch (err) {
                     console.error('Error fetching reference definition:', err);
@@ -190,9 +245,11 @@ document.addEventListener('alpine:init', () => {
                 const defResponse = await fetch('/Home/GetStrongRef/' + refnum);
                 if (defResponse.ok) {
                     const html = await defResponse.text();
-                    this.htmlItems.push(refnum);
-                    this.addRefHtml(html);
-                    this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item).join(' '));
+                    if (!skipHtmlPush) {
+                        this.htmlItems.push({ ref: refnum, html: html });
+                    }
+                    if (!this.defActiveTab) this.defActiveTab = refnum;
+                    this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item.ref).join(' '));
                 }
 
                 // Fetch word usage references
@@ -229,46 +286,62 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // Append definition HTML to container
-        addRefHtml(html) {
-            const defsContainer = document.getElementById('defs');
-            if (!defsContainer) return;
-
-            // Create a wrapper div for this definition
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = html;
-            
-            // Append the child nodes to avoid extra wrapper container styling issues
-            while (wrapper.firstChild) {
-                defsContainer.appendChild(wrapper.firstChild);
-            }
-        },
-
         // Close/remove a definition card
-        closedef(strongsNumber, element) {
-            this.htmlItems = this.htmlItems.filter(item => item !== strongsNumber);
+        closedef(strongsNumber) {
+            this.htmlItems = this.htmlItems.filter(item => item.ref !== strongsNumber);
             
+            if (this.defActiveTab === strongsNumber) {
+                this.defActiveTab = this.htmlItems.length > 0 ? this.htmlItems[0].ref : null;
+            }
+
             // Update selection persistence
             if (this.htmlItems.length === 0) {
                 this.setSavedLemma(null);
                 this.wordRefs = [];
+                this.bookOccurrences = [];
+                this.activeRef = '';
             } else {
-                this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item).join(' '));
-            }
-
-            if (element) {
-                // The structure is: <div class="greek-def"><i class="fa fa-times-circle defclose"></i> ...</div>
-                // The parent elements are: defclose -> greek-def (parent) -> we want to remove the greek-def element (and its trailing <hr/> if present)
-                const greekDefEl = element.closest('.greek-def');
-                if (greekDefEl) {
-                    // Check if there is an <hr> immediately after the greek-def, and remove it
-                    const nextSibling = greekDefEl.nextSibling;
-                    if (nextSibling && nextSibling.nodeName === 'HR') {
-                        nextSibling.remove();
-                    }
-                    greekDefEl.remove();
+                this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item.ref).join(' '));
+                if (this.defActiveTab) {
+                    this.loadRef(this.defActiveTab, true);
                 }
             }
+        },
+
+        // Sidebar Book Search methods
+        async selectSearchBook(bookAbbr, bookName) {
+            this.selectedSearchBook = bookAbbr;
+            this.selectedSearchBookName = bookName;
+            this.searchView = 'loading';
+            try {
+                const res = await fetch('/Home/GetBookVerses?id=' + encodeURIComponent(bookAbbr));
+                const verses = await res.json();
+                
+                const chaptersMap = new Map();
+                verses.forEach(v => {
+                    const ch = v.chapter || v.Chapter;
+                    if (!chaptersMap.has(ch)) chaptersMap.set(ch, []);
+                    chaptersMap.get(ch).push(v);
+                });
+                
+                this.searchChapters = Array.from(chaptersMap.keys()).sort((a,b) => a-b);
+                this.allBookVerses = chaptersMap;
+                this.searchView = 'chapters';
+            } catch (err) {
+                console.error('Error fetching book chapters:', err);
+                this.searchView = 'books';
+            }
+        },
+        
+        selectSearchChapter(chap) {
+            this.searchVerses = this.allBookVerses.get(chap);
+            this.searchView = 'verses';
+        },
+        
+        resetSearch() {
+            this.searchView = 'books';
+            this.selectedSearchBook = '';
+            this.selectedSearchBookName = '';
         },
 
         // Click handler for "also see" links
@@ -280,9 +353,10 @@ document.addEventListener('alpine:init', () => {
         // Decode HTML entities (needed for verse XML rendering in statistics list)
         decode(input) {
             if (!input) return '';
-            if (/&amp;|&quot;|&#39;|'&lt;|&gt;/.test(input)) {
-                const doc = new DOMParser().parseFromString(input, 'text/html');
-                return doc.documentElement.textContent;
+            if (/&amp;|&quot;|&#39;|&lt;|&gt;/.test(input)) {
+                const txt = document.createElement("textarea");
+                txt.innerHTML = input;
+                return txt.value;
             }
             return input;
         },
@@ -311,20 +385,21 @@ document.addEventListener('alpine:init', () => {
                     strongs,
                     reference,
                     lemma: lemma || '',
-                    language: language || 'Greek'
+                    language: language || 'Greek',
+                    connectionId: this.synonymConnectionId || ''
                 });
                 const resp = await fetch('/Home/GetSynonyms?' + params.toString());
                 if (!resp.ok) {
                     const errBody = await resp.json().catch(() => ({ error: resp.statusText }));
                     this.synonymError = errBody?.error || `Error ${resp.status}`;
+                    this.synonymLoading = false;
                     return;
                 }
-                this.synonymData = await resp.json();
+                // synonymData and synonymLoading will be updated by SignalR callback
             } catch (err) {
                 this.synonymError = 'Network error — could not reach the synonym engine.';
-                console.error('loadSynonyms error:', err);
-            } finally {
                 this.synonymLoading = false;
+                console.error('loadSynonyms error:', err);
             }
         },
 

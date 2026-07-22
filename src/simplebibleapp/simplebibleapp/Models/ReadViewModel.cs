@@ -19,6 +19,7 @@ namespace simplebibleapp.Models
         public int NextChapterNumber { get; set; }
         public IEnumerable<WordInfo> WordInfos { get; set; }
         public IEnumerable<SelectableVerse> SelectableVerses { get; set; }
+        public IEnumerable<BookListItem> Books { get; set; }
     }
 
     public class BibleChapterReading

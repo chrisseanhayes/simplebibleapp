@@ -228,10 +228,11 @@ namespace simplebibleapp.xmlbible.search
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"
-                        SELECT book_abbr, occurrence_count 
-                        FROM word_book_aggregates 
-                        WHERE strong_number = @strong_number
-                        ORDER BY occurrence_count DESC";
+                        SELECT a.book_abbr, a.occurrence_count 
+                        FROM word_book_aggregates a
+                        JOIN books b ON a.book_abbr = b.abbr
+                        WHERE a.strong_number = @strong_number
+                        ORDER BY b.id ASC";
                     cmd.Parameters.AddWithValue("@strong_number", strongsNumber);
 
                     using (var reader = cmd.ExecuteReader())
