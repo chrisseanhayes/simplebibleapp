@@ -89,8 +89,7 @@ namespace simplebibleapp.Controllers
         [HttpGet]
         public ActionResult Index()
         {
-            var booknames = _bookNameRepository.GetBooks();
-            return View(booknames);
+            return Redirect($"{Url.Action("Read", new { bookAbbr = "John", chapter = 1 })}#vs-1");
         }
 
         [HttpGet]
@@ -227,6 +226,24 @@ namespace simplebibleapp.Controllers
             });
 
             return Json(new { status = "processing" });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CheckSynonymsCache(
+            string reference,
+            string strongs)
+        {
+            if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(strongs))
+                return BadRequest();
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var linguisticService = scope.ServiceProvider.GetRequiredService<IAgyLinguisticService>();
+            var cached = await linguisticService.GetCachedTokenAsync(reference, strongs);
+            
+            if (cached != null)
+                return Json(new { cached = true, data = cached });
+            else
+                return Json(new { cached = false });
         }
 
         private T ParseByDictionary<T>(Func<int,T> forGreekDefinition, Func<int,T> forHebrewDefinition, Func<T> defaultAction, string id){

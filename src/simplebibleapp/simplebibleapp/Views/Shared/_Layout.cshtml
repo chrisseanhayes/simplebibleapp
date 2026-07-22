@@ -72,42 +72,15 @@
             </div>
             
             <div class="header-right">
-                <!-- Desktop Navigation Links -->
-                <nav class="nav-links">
-                    <a asp-area="" asp-controller="Home" asp-action="Index" class="nav-link">Home</a>
-                    <a asp-area="" asp-controller="Home" asp-action="About" class="nav-link">About</a>
-                    <a asp-area="" asp-controller="Home" asp-action="Contact" class="nav-link">Contact</a>
-                    <a href="https://www.patreon.com/chrisseanhayes" target="_blank" class="nav-link donate-link">
-                        <i class="fab fa-patreon"></i> Donate
-                    </a>
-                </nav>
-                
                 <!-- Action Buttons -->
                 <div class="action-buttons">
                     <!-- Theme Toggle -->
                     <button x-on:click="toggleTheme()" class="theme-toggle" aria-label="Toggle dark mode">
                         <i class="fas" x-bind:class="dark ? 'fa-sun' : 'fa-moon'"></i>
                     </button>
-                    
-                    <!-- Mobile Menu Button -->
-                    <button x-on:click="mobileMenuOpen = !mobileMenuOpen" class="mobile-menu-btn" aria-label="Toggle menu">
-                        <i class="fas" x-bind:class="mobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
-                    </button>
                 </div>
             </div>
         </header>
-
-        <!-- Mobile Navigation Menu -->
-        <div class="mobile-nav" x-show="mobileMenuOpen" x-transition x-cloak>
-            <nav class="mobile-nav-links">
-                <a asp-area="" asp-controller="Home" asp-action="Index" class="mobile-nav-link" x-on:click="mobileMenuOpen = false">Home</a>
-                <a asp-area="" asp-controller="Home" asp-action="About" class="mobile-nav-link" x-on:click="mobileMenuOpen = false">About</a>
-                <a asp-area="" asp-controller="Home" asp-action="Contact" class="mobile-nav-link" x-on:click="mobileMenuOpen = false">Contact</a>
-                <a href="https://www.patreon.com/chrisseanhayes" target="_blank" class="mobile-nav-link donate" x-on:click="mobileMenuOpen = false">
-                    <i class="fab fa-patreon"></i> Donate on Patreon
-                </a>
-            </nav>
-        </div>
 
         <main class="app-main">
             @RenderBody()

@@ -103,6 +103,14 @@ namespace simplebibleapp.LinguisticEngine.Services
             }
         }
 
+        public Task<AgyLinguisticPayloadDto?> GetCachedTokenAsync(
+            string reference,
+            string anchorStrongs,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<AgyLinguisticPayloadDto?>(null);
+        }
+
         // ── Helpers ────────────────────────────────────────────────────────────
 
         /// <summary>

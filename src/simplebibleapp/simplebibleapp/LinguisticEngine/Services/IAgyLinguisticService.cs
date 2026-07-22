@@ -15,5 +15,13 @@ namespace simplebibleapp.LinguisticEngine.Services
             string anchorLemma,
             string language,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Check the cache for an existing synonym/semantic network payload without invoking the AI.
+        /// </summary>
+        Task<AgyLinguisticPayloadDto?> GetCachedTokenAsync(
+            string reference,
+            string anchorStrongs,
+            CancellationToken cancellationToken = default);
     }
 }

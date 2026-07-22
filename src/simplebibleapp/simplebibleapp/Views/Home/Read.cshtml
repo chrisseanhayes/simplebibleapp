@@ -17,7 +17,7 @@
     };
 }
 
-<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter)">
+<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter, '@Html.Raw(Model.ChapterHeading)')">
     <!-- Navigation Breadcrumbs -->
     <div class="bible-nav-container">
         <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">

@@ -78,6 +78,28 @@ namespace simplebibleapp.LinguisticEngine.Services
             return result;
         }
 
+        public async Task<AgyLinguisticPayloadDto?> GetCachedTokenAsync(
+            string reference,
+            string anchorStrongs,
+            CancellationToken cancellationToken = default)
+        {
+            string l1Key = $"agy:{anchorStrongs}:{reference.Replace(" ", "_")}";
+
+            if (_l1.TryGetValue(l1Key, out AgyLinguisticPayloadDto? cached) && cached is not null)
+            {
+                return cached;
+            }
+
+            var fromDb = await _l2.GetAsync(anchorStrongs, reference, cancellationToken);
+            if (fromDb is not null)
+            {
+                WarmL1(l1Key, fromDb);
+                return fromDb;
+            }
+
+            return null;
+        }
+
         private void WarmL1(string key, AgyLinguisticPayloadDto value)
         {
             _l1.Set(key, value, new MemoryCacheEntryOptions

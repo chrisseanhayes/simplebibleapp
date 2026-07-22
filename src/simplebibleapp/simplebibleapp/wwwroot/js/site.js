@@ -14,6 +14,7 @@ document.addEventListener('alpine:init', () => {
         wordRefs: [],  // Statistics of usage for the current ref
         bookAbbr: '',
         chapter: 1,
+        chapterHeading: '',
         activeRef: '',
         isExcluded: false,
         bookOccurrences: [],
@@ -36,6 +37,7 @@ document.addEventListener('alpine:init', () => {
         synonymActiveRef: '',    // which strongs triggered the current analysis
         synonymConnectionId: null,
         synonymHub: null,
+        synonymCache: {},        // Cache for synonym data keyed by strongs ref
 
         getSavedLemma() {
             try {
@@ -57,9 +59,10 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        init(bookAbbr, chapter) {
+        init(bookAbbr, chapter, chapterHeading) {
             this.bookAbbr = bookAbbr;
             this.chapter = chapter;
+            this.chapterHeading = chapterHeading || '';
 
             // Setup event delegation on the .def-tab-content container for dynamic HTML elements
             const defsContainer = document.querySelector('.def-tab-content');
@@ -112,6 +115,9 @@ document.addEventListener('alpine:init', () => {
                 this.synonymHub.on("ReceiveSynonyms", (data) => {
                     this.synonymData = data;
                     this.synonymLoading = false;
+                    if (this.synonymActiveRef) {
+                        this.synonymCache[this.synonymActiveRef] = data;
+                    }
                 });
 
                 this.synonymHub.on("ReceiveSynonymsError", (err) => {
@@ -211,12 +217,14 @@ document.addEventListener('alpine:init', () => {
         async loadRef(refnum, skipHtmlPush = false) {
             if (!skipHtmlPush && this.htmlItems.some(h => h.ref === refnum)) {
                 this.defActiveTab = refnum;
+                this.updateSynonymState(refnum);
                 return;
             }
             this.defload = true;
             this.activeRef = refnum;
             this.selectedUsageBook = this.bookAbbr;
             this.bookOccurrences = [];
+            this.updateSynonymState(refnum);
 
             if (EXCLUDED_STRONGS.has(refnum)) {
                 this.isExcluded = true;
@@ -270,6 +278,39 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        async updateSynonymState(refnum) {
+            if (this.synonymCache[refnum]) {
+                this.synonymData = this.synonymCache[refnum];
+                this.synonymActiveRef = refnum;
+                return;
+            }
+            
+            this.synonymData = null;
+            this.synonymActiveRef = '';
+
+            if (!this.chapterHeading) return;
+
+            try {
+                const params = new URLSearchParams({
+                    strongs: refnum,
+                    reference: this.chapterHeading
+                });
+                const resp = await fetch('/Home/CheckSynonymsCache?' + params.toString());
+                if (resp.ok) {
+                    const result = await resp.json();
+                    if (result.cached && result.data) {
+                        this.synonymCache[refnum] = result.data;
+                        if (this.activeRef === refnum) {
+                            this.synonymData = result.data;
+                            this.synonymActiveRef = refnum;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking synonym cache:', err);
+            }
+        },
+
         async selectUsageBook(bookAbbr) {
             if (!this.activeRef || this.isExcluded) return;
             this.selectedUsageBook = bookAbbr;
@@ -300,6 +341,8 @@ document.addEventListener('alpine:init', () => {
                 this.wordRefs = [];
                 this.bookOccurrences = [];
                 this.activeRef = '';
+                this.synonymData = null;
+                this.synonymActiveRef = '';
             } else {
                 this.setSavedLemma(this.htmlItems.map(item => 'strong:' + item.ref).join(' '));
                 if (this.defActiveTab) {
