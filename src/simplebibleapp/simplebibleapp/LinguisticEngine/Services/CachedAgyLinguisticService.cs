@@ -39,58 +39,56 @@ namespace simplebibleapp.LinguisticEngine.Services
         }
 
         public async Task<AgyLinguisticPayloadDto?> AnalyzeTokenAsync(
-            string reference,
             string anchorStrongs,
             string anchorLemma,
             string language,
             CancellationToken cancellationToken = default)
         {
-            string l1Key = $"agy:{anchorStrongs}:{reference.Replace(" ", "_")}";
+            string l1Key = $"agy:{anchorStrongs}";
 
             // ── L1: Memory cache ─────────────────────────────────────────────
             if (_l1.TryGetValue(l1Key, out AgyLinguisticPayloadDto? cached) && cached is not null)
             {
-                _logger.LogDebug("AgyCache L1 HIT for {Strongs}/{Reference}", anchorStrongs, reference);
+                _logger.LogDebug("AgyCache L1 HIT for {Strongs}", anchorStrongs);
                 return cached;
             }
 
             // ── L2: SQLite cache ─────────────────────────────────────────────
-            var fromDb = await _l2.GetAsync(anchorStrongs, reference, cancellationToken);
+            var fromDb = await _l2.GetAsync(anchorStrongs, "", cancellationToken);
             if (fromDb is not null)
             {
-                _logger.LogDebug("AgyCache L2 HIT for {Strongs}/{Reference} — warming L1", anchorStrongs, reference);
+                _logger.LogDebug("AgyCache L2 HIT for {Strongs} — warming L1", anchorStrongs);
                 WarmL1(l1Key, fromDb);
                 return fromDb;
             }
 
             // ── Cache miss: call Gemini CLI ──────────────────────────────────
-            _logger.LogInformation("AgyCache MISS for {Strongs}/{Reference} — calling Gemini CLI", anchorStrongs, reference);
-            var result = await _inner.AnalyzeTokenAsync(reference, anchorStrongs, anchorLemma, language, cancellationToken);
+            _logger.LogInformation("AgyCache MISS for {Strongs} — calling Gemini CLI", anchorStrongs);
+            var result = await _inner.AnalyzeTokenAsync(anchorStrongs, anchorLemma, language, cancellationToken);
 
             if (result is not null)
             {
                 // Write-through to both layers
                 WarmL1(l1Key, result);
-                await _l2.SetAsync(anchorStrongs, reference, result, cancellationToken);
-                _logger.LogInformation("AgyCache stored result for {Strongs}/{Reference}", anchorStrongs, reference);
+                await _l2.SetAsync(anchorStrongs, "", result, cancellationToken);
+                _logger.LogInformation("AgyCache stored result for {Strongs}", anchorStrongs);
             }
 
             return result;
         }
 
         public async Task<AgyLinguisticPayloadDto?> GetCachedTokenAsync(
-            string reference,
             string anchorStrongs,
             CancellationToken cancellationToken = default)
         {
-            string l1Key = $"agy:{anchorStrongs}:{reference.Replace(" ", "_")}";
+            string l1Key = $"agy:{anchorStrongs}";
 
             if (_l1.TryGetValue(l1Key, out AgyLinguisticPayloadDto? cached) && cached is not null)
             {
                 return cached;
             }
 
-            var fromDb = await _l2.GetAsync(anchorStrongs, reference, cancellationToken);
+            var fromDb = await _l2.GetAsync(anchorStrongs, "", cancellationToken);
             if (fromDb is not null)
             {
                 WarmL1(l1Key, fromDb);

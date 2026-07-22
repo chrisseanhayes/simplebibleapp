@@ -31,7 +31,6 @@ namespace Agy.LinguisticEngine.Models;
 using System.Text.Json.Serialization;
 
 public record TargetSelectionDto(
-    [property: JsonPropertyName("reference")] string Reference,
     [property: JsonPropertyName("anchor_strongs")] string AnchorStrongs,
     [property: JsonPropertyName("anchor_lemma")] string AnchorLemma,
     [property: JsonPropertyName("transliteration")] string Transliteration,
@@ -83,7 +82,6 @@ namespace Agy.LinguisticEngine.Services;
 public interface IAgyLinguisticService
 {
     Task<AgyLinguisticPayloadDto?> AnalyzeTokenAsync(
-        string reference, 
         string anchorStrongs, 
         string anchorLemma, 
         string language, 
@@ -111,13 +109,12 @@ public class GeminiCliService : IAgyLinguisticService
     }
 
     public async Task<AgyLinguisticPayloadDto?> AnalyzeTokenAsync(
-        string reference,
         string anchorStrongs,
         string anchorLemma,
         string language,
         CancellationToken cancellationToken = default)
     {
-        string prompt = BuildPromptPayload(reference, anchorStrongs, anchorLemma, language);
+        string prompt = BuildPromptPayload(anchorStrongs, anchorLemma, language);
 
         var startInfo = new ProcessStartInfo
         {
@@ -160,25 +157,23 @@ public class GeminiCliService : IAgyLinguisticService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to execute Gemini CLI analysis for {Strongs} in {Reference}", anchorStrongs, reference);
+            _logger.LogError(ex, "Failed to execute Gemini CLI analysis for {Strongs}", anchorStrongs);
             throw;
         }
     }
 
-    private static string BuildPromptPayload(string reference, string anchorStrongs, string anchorLemma, string language)
+    private static string BuildPromptPayload(string anchorStrongs, string anchorLemma, string language)
     {
         return $"""
         Target Selection:
-        - Reference: {reference}
         - Anchor Strong's: {anchorStrongs}
         - Anchor Lemma: {anchorLemma}
         - Language: {language}
 
-        Analyze the target token in its immediate verse context and across the biblical canon (MT / TR / LXX). Return ONLY valid JSON adhering strictly to this schema:
+        Analyze the target token across the biblical canon (MT / TR / LXX). Return ONLY valid JSON adhering strictly to this schema:
 
         {{
           "target_selection": {{
-            "reference": "string",
             "anchor_strongs": "string",
             "anchor_lemma": "string",
             "transliteration": "string",
@@ -230,12 +225,12 @@ app.MapGet("/api/linguistics/synonyms", async (
     IAgyLinguisticService agyService,
     CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(strongs))
+    if (string.IsNullOrWhiteSpace(strongs))
     {
-        return Results.BadRequest("Reference and Strongs parameters are required.");
+        return Results.BadRequest("Strongs parameter is required.");
     }
 
-    var result = await agyService.AnalyzeTokenAsync(reference, strongs, lemma, language, ct);
+    var result = await agyService.AnalyzeTokenAsync(strongs, lemma, language, ct);
     
     return result is not null 
         ? Results.Ok(result) 
@@ -263,14 +258,14 @@ public class CachedAgyLinguisticService : IAgyLinguisticService
     }
 
     public async Task<AgyLinguisticPayloadDto?> AnalyzeTokenAsync(
-        string reference, string anchorStrongs, string anchorLemma, string language, CancellationToken cancellationToken = default)
+        string anchorStrongs, string anchorLemma, string language, CancellationToken cancellationToken = default)
     {
-        string cacheKey = $"agy:{anchorStrongs}:{reference.Replace(" ", "_")}";
+        string cacheKey = $"agy:{anchorStrongs}";
 
         return await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30); // Long-lived lexical cache
-            return await _innerService.AnalyzeTokenAsync(reference, anchorStrongs, anchorLemma, language, cancellationToken);
+            return await _innerService.AnalyzeTokenAsync(anchorStrongs, anchorLemma, language, cancellationToken);
         });
     }
 }

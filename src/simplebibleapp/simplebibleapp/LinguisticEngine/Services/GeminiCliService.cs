@@ -31,13 +31,12 @@ namespace simplebibleapp.LinguisticEngine.Services
         }
 
         public async Task<AgyLinguisticPayloadDto?> AnalyzeTokenAsync(
-            string reference,
             string anchorStrongs,
             string anchorLemma,
             string language,
             CancellationToken cancellationToken = default)
         {
-            string prompt = BuildPrompt(reference, anchorStrongs, anchorLemma, language);
+            string prompt = BuildPrompt(anchorStrongs, anchorLemma, language);
 
             // Resolve agy binary: prefer PATH lookup, fall back to known install locations
             string agyBin = ResolveBinary("agy");
@@ -75,8 +74,8 @@ namespace simplebibleapp.LinguisticEngine.Services
                 if (process.ExitCode != 0)
                 {
                     _logger.LogError(
-                        "agy exited with code {ExitCode} for {Strongs} in {Reference}. Stderr: {Stderr}",
-                        process.ExitCode, anchorStrongs, reference, stderr);
+                        "agy exited with code {ExitCode} for {Strongs}. Stderr: {Stderr}",
+                        process.ExitCode, anchorStrongs, stderr);
                     return null;
                 }
 
@@ -97,14 +96,13 @@ namespace simplebibleapp.LinguisticEngine.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex,
-                    "Failed to execute agy synonym analysis for {Strongs} in {Reference}",
-                    anchorStrongs, reference);
+                    "Failed to execute agy synonym analysis for {Strongs}",
+                    anchorStrongs);
                 throw;
             }
         }
 
         public Task<AgyLinguisticPayloadDto?> GetCachedTokenAsync(
-            string reference,
             string anchorStrongs,
             CancellationToken cancellationToken = default)
         {
@@ -166,11 +164,10 @@ namespace simplebibleapp.LinguisticEngine.Services
             return trimmed;
         }
 
-        private static string BuildPrompt(string reference, string anchorStrongs, string anchorLemma, string language)
+        private static string BuildPrompt(string anchorStrongs, string anchorLemma, string language)
         {
             const string schema = @"{
   ""target_selection"": {
-    ""reference"": ""string"",
     ""anchor_strongs"": ""string"",
     ""anchor_lemma"": ""string"",
     ""transliteration"": ""string"",
@@ -199,11 +196,10 @@ namespace simplebibleapp.LinguisticEngine.Services
             return
                 "You are a biblical Hebrew and Greek linguistic expert. Analyze the following original-language token in context.\n\n" +
                 $"Target Selection:\n" +
-                $"- Reference: {reference}\n" +
                 $"- Anchor Strong's: {anchorStrongs}\n" +
                 $"- Anchor Lemma: {anchorLemma}\n" +
                 $"- Language: {language}\n\n" +
-                "Analyze the target token in its immediate verse context and across the biblical canon (MT / TR / LXX).\n" +
+                "Analyze the target token across the biblical canon (MT / TR / LXX).\n" +
                 "Return ONLY valid JSON — no prose, no markdown fences — strictly matching this schema:\n\n" +
                 schema;
         }

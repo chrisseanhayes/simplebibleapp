@@ -182,8 +182,8 @@ namespace simplebibleapp.Controllers
             string language,
             string connectionId)
         {
-            if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(strongs))
-                return BadRequest(new { error = "'reference' and 'strongs' parameters are required." });
+            if (string.IsNullOrWhiteSpace(strongs))
+                return BadRequest(new { error = "'strongs' parameter is required." });
             if (string.IsNullOrWhiteSpace(connectionId))
                 return BadRequest(new { error = "'connectionId' parameter is required." });
 
@@ -197,7 +197,7 @@ namespace simplebibleapp.Controllers
                     var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<LinguisticHub>>();
 
                     var result = await linguisticService.AnalyzeTokenAsync(
-                        reference, strongs, lemma ?? string.Empty, language ?? "Greek", CancellationToken.None);
+                        strongs, lemma ?? string.Empty, language ?? "Greek", CancellationToken.None);
 
                     if (result is null)
                     {
@@ -214,7 +214,7 @@ namespace simplebibleapp.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, "GetSynonyms background failed for {Strongs} / {Reference}", strongs, reference);
+                    Logger.Error(ex, "GetSynonyms background failed for {Strongs}", strongs);
                     try
                     {
                         using var scope = _serviceScopeFactory.CreateScope();
@@ -233,12 +233,12 @@ namespace simplebibleapp.Controllers
             string reference,
             string strongs)
         {
-            if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(strongs))
+            if (string.IsNullOrWhiteSpace(strongs))
                 return BadRequest();
 
             using var scope = _serviceScopeFactory.CreateScope();
             var linguisticService = scope.ServiceProvider.GetRequiredService<IAgyLinguisticService>();
-            var cached = await linguisticService.GetCachedTokenAsync(reference, strongs);
+            var cached = await linguisticService.GetCachedTokenAsync(strongs);
             
             if (cached != null)
                 return Json(new { cached = true, data = cached });

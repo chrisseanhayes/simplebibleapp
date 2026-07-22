@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 namespace simplebibleapp.LinguisticEngine.Models
 {
     public record TargetSelectionDto(
-        [property: JsonPropertyName("reference")] string Reference,
         [property: JsonPropertyName("anchor_strongs")] string AnchorStrongs,
         [property: JsonPropertyName("anchor_lemma")] string AnchorLemma,
         [property: JsonPropertyName("transliteration")] string Transliteration,
