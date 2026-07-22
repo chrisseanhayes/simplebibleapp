@@ -36,3 +36,7 @@ msbuild.wrn
 
 *.db
 *.db-journal
+
+# Antigravity CLI Credentials
+.gemini/
+.gemini
