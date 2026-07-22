@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using NLog.Web;
 using NLog.Web.AspNetCore;
+using simplebibleapp.LinguisticEngine.Cache;
+using simplebibleapp.LinguisticEngine.Services;
 using simplebibleapp.xmlbible;
 using simplebibleapp.xmlbible.search;
 using simplebibleapp.xmlbiblerepository;
@@ -40,6 +42,9 @@ namespace simplebibleapp
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
+            // In-memory cache for the synonym engine (avoids repeated Gemini CLI calls)
+            services.AddMemoryCache();
 
             services.AddDistributedRedisCache(o =>
             {
@@ -80,6 +85,18 @@ namespace simplebibleapp
             registry.For<IChapterBuilderFactory>().Add<ChapterBuilderFactory>();
             registry.For<IWordCountBuilderFactory>().Add<WordCountBuilderFactory>();
             registry.For<IVerseSearch>().Use<SqliteVerseSearch>();
+
+            // Synonym engine: AgyCliService (inner) → CachedAgyLinguisticService (L1 memory + L2 SQLite)
+            registry.For<AgyCliService>().Use<AgyCliService>();
+            registry.ForSingletonOf<AgyLinguisticCache>().Use<AgyLinguisticCache>();
+            registry.For<IAgyLinguisticService>().Use(ctx =>
+            {
+                var inner  = ctx.GetInstance<AgyCliService>();
+                var l1     = ctx.GetInstance<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                var l2     = ctx.GetInstance<AgyLinguisticCache>();
+                var logger = ctx.GetInstance<Microsoft.Extensions.Logging.ILogger<CachedAgyLinguisticService>>();
+                return new CachedAgyLinguisticService(inner, l1, l2, logger);
+            }).Scoped();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -87,12 +104,16 @@ namespace simplebibleapp
         {
             loggerFactory.AddNLog();
 
-            // Auto-create SQLite database if it does not exist
+            // Auto-create SQLite bible database if it does not exist
             using (var scope = app.ApplicationServices.CreateScope())
             {
                 var pathResolver = scope.ServiceProvider.GetRequiredService<IXmlPathResolver>();
                 var states = scope.ServiceProvider.GetServices<IState>();
                 SqliteDbInitializer.EnsureDbCreated(pathResolver.GetPath(), states);
+
+                // Ensure the Agy linguistic cache table exists in its own DB file
+                var agyCache = scope.ServiceProvider.GetRequiredService<AgyLinguisticCache>();
+                agyCache.EnsureTableCreated();
             }
 
             var fordwardedHeaderOptions = new ForwardedHeadersOptions

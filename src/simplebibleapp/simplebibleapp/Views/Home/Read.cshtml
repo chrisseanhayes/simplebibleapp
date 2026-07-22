@@ -69,6 +69,21 @@
                 <i class="fas fa-search-plus"></i>
                 <span x-text="fullbible ? 'Show Dictionary' : 'Hide Dictionary'">Dictionary</span>
             </button>
+
+            <!-- Synonym Engine Button -->
+            <button class="btn-syn-toggle"
+                    x-bind:class="{ 'active': synonymVisible }"
+                    x-on:click="
+                        if (activeRef) {
+                            const lang = activeRef.startsWith('H') ? 'Hebrew' : 'Greek';
+                            if (fullbible) fullbible = false;
+                            loadSynonyms(activeRef, '@Model.ChapterHeading', '', lang);
+                        }"
+                    x-bind:disabled="!activeRef"
+                    title="Analyse synonyms &amp; semantic network for selected word">
+                <i class="fas fa-project-diagram"></i>
+                <span>Synonyms</span>
+            </button>
         </div>
     </div>
 
@@ -166,6 +181,84 @@
                     </a>
                 </template>
             </div>
+
+            <!-- ── Synonym / Linguistic Engine Panel ─────────────────────── -->
+            <div class="syn-panel" x-show="synonymVisible" x-transition>
+                <!-- Header -->
+                <div class="syn-panel-header">
+                    <div class="syn-panel-title">
+                        <i class="fas fa-project-diagram"></i>
+                        Semantic Network
+                        <span class="syn-ref-badge" x-text="synonymActiveRef"></span>
+                    </div>
+                    <button class="syn-close" x-on:click="closeSynonyms()" title="Close synonym panel">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Loading -->
+                <div class="syn-loading" x-show="synonymLoading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Analysing with Gemini&hellip;</span>
+                </div>
+
+                <!-- Error -->
+                <div class="syn-error" x-show="!synonymLoading && synonymError" x-text="synonymError"></div>
+
+                <!-- Results -->
+                <div x-show="!synonymLoading && synonymData">
+
+                    <!-- Target Selection card -->
+                    <div class="syn-card" x-show="synonymData?.target_selection">
+                        <div class="syn-lemma" x-text="synonymData?.target_selection?.anchor_lemma"></div>
+                        <div class="syn-translit" x-text="synonymData?.target_selection?.transliteration"></div>
+                        <div class="syn-gloss" x-text="'\u201c' + (synonymData?.target_selection?.contextual_gloss || '') + '\u201d'"></div>
+                    </div>
+
+                    <!-- Exegetical Context -->
+                    <div class="syn-section" x-show="synonymData?.exegetical_context">
+                        <div class="syn-section-label">Exegetical Context</div>
+                        <div class="syn-context-row">
+                            <span class="syn-context-key">Role:</span>
+                            <span x-text="synonymData?.exegetical_context?.immediate_context_role"></span>
+                        </div>
+                        <div class="syn-context-row">
+                            <span class="syn-context-key">Function:</span>
+                            <span x-text="synonymData?.exegetical_context?.local_thematic_function"></span>
+                        </div>
+                        <div class="syn-context-row">
+                            <span class="syn-context-key">Canon:</span>
+                            <span x-text="synonymData?.exegetical_context?.canonical_trajectory_summary"></span>
+                        </div>
+                    </div>
+
+                    <!-- Synonym Network -->
+                    <div class="syn-section" x-show="synonymData?.synonym_network?.length > 0">
+                        <div class="syn-section-label">Synonym Network</div>
+                        <div class="syn-network-grid">
+                            <template x-for="(node, i) in (synonymData?.synonym_network || [])" :key="node.strongs + i">
+                                <div class="syn-node"
+                                     x-bind:class="'rel-' + node.relationship"
+                                     x-on:click="loadRef(node.strongs)">
+                                    <div class="syn-node-top">
+                                        <span class="syn-node-lemma" x-text="node.lemma"></span>
+                                        <span class="syn-node-strongs" x-text="node.strongs"></span>
+                                    </div>
+                                    <div class="syn-node-translit" x-text="node.transliteration"></div>
+                                    <div class="syn-node-gloss" x-text="node.primary_gloss"></div>
+                                    <div class="syn-node-meta">
+                                        <span class="syn-rel-badge" x-text="relationshipLabel(node.relationship)"></span>
+                                        <span class="syn-conf-badge" x-bind:class="confidenceClass(node.contextual_confidence)" x-text="Math.round(node.contextual_confidence * 100) + '%'"></span>
+                                    </div>
+                                    <div class="syn-node-notes" x-show="node.thematic_alignment_notes" x-text="node.thematic_alignment_notes"></div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- ── /Synonym Panel ─────────────────────────────────────────── -->
         </div>
     </div>
 </div>

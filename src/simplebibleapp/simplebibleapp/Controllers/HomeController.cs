@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
+using simplebibleapp.LinguisticEngine.Services;
 using simplebibleapp.Models;
 using simplebibleapp.xmlbible;
 using simplebibleapp.xmlbible.search;
@@ -32,19 +34,22 @@ namespace simplebibleapp.Controllers
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly IWordCountBuilder _wordCountBuilder;
         private readonly IVerseSearch _verseSearch;
+        private readonly IAgyLinguisticService _linguisticService;
 
         public HomeController(
             IChapterBuilderFactory factory,
             IBookNameRepository bookNameRepository,
             IDictionaryRepository dictionaryRepository,
             IWordCountBuilderFactory wordCountBuilderFactory,
-            IVerseSearch verseSearch)
+            IVerseSearch verseSearch,
+            IAgyLinguisticService linguisticService)
         {
             _builder = factory.GetBuilder();
             _bookNameRepository = bookNameRepository;
             _dictionaryRepository = dictionaryRepository;
             _wordCountBuilder = wordCountBuilderFactory.GetBuilder();
             _verseSearch = verseSearch;
+            _linguisticService = linguisticService;
         }
 
         [HttpGet]
@@ -146,6 +151,46 @@ namespace simplebibleapp.Controllers
         public IEnumerable<BookOccurrence> GetWordAggregates(string id)
         {
             return _verseSearch.GetWordBookAggregates(id);
+        }
+
+        /// <summary>
+        /// Returns a synonym / semantic-network analysis for an original-language token.
+        /// Calls the Gemini CLI via <see cref="IAgyLinguisticService"/> (with in-memory caching).
+        /// </summary>
+        /// <param name="reference">Full verse reference, e.g. "John 3:16"</param>
+        /// <param name="strongs">Strong's number, e.g. "G3056"</param>
+        /// <param name="lemma">Lemma text, e.g. "λόγος"</param>
+        /// <param name="language">"Greek" or "Hebrew"</param>
+        [HttpGet]
+        public async Task<IActionResult> GetSynonyms(
+            string reference,
+            string strongs,
+            string lemma,
+            string language,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(strongs))
+                return BadRequest(new { error = "'reference' and 'strongs' parameters are required." });
+
+            try
+            {
+                var result = await _linguisticService.AnalyzeTokenAsync(
+                    reference, strongs, lemma ?? string.Empty, language ?? "Greek", cancellationToken);
+
+                if (result is null)
+                    return StatusCode(500, new { error = "Gemini CLI analysis returned no result." });
+
+                return Json(result);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499, new { error = "Request cancelled." });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "GetSynonyms failed for {Strongs} / {Reference}", strongs, reference);
+                return StatusCode(500, new { error = "Internal error during synonym analysis." });
+            }
         }
 
         private T ParseByDictionary<T>(Func<int,T> forGreekDefinition, Func<int,T> forHebrewDefinition, Func<T> defaultAction, string id){

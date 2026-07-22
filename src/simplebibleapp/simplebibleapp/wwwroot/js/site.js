@@ -17,6 +17,13 @@ document.addEventListener('alpine:init', () => {
         bookOccurrences: [],
         selectedUsageBook: '',
 
+        // ── Synonym / Linguistic Engine state ──────────────────────────────
+        synonymData: null,       // AgyLinguisticPayloadDto from the API
+        synonymLoading: false,   // spinner flag
+        synonymError: null,      // error string or null
+        synonymVisible: false,   // whether the synonym panel is shown
+        synonymActiveRef: '',    // which strongs triggered the current analysis
+
         getSavedLemma() {
             try {
                 return sessionStorage.getItem('selectedLemma');
@@ -278,6 +285,73 @@ document.addEventListener('alpine:init', () => {
                 return doc.documentElement.textContent;
             }
             return input;
+        },
+
+        // ── Synonym / Linguistic Engine ────────────────────────────────────
+
+        /**
+         * Load a synonym analysis for the currently-selected Strong's number.
+         * @param {string} strongs  e.g. 'G3056'
+         * @param {string} reference  e.g. 'John 1:1'
+         * @param {string} lemma  optional original-language lemma text
+         * @param {string} language  'Greek' or 'Hebrew'
+         */
+        async loadSynonyms(strongs, reference, lemma, language) {
+            if (!strongs || !reference) return;
+            if (this.synonymLoading) return; // debounce
+
+            this.synonymActiveRef = strongs;
+            this.synonymLoading = true;
+            this.synonymError = null;
+            this.synonymData = null;
+            this.synonymVisible = true;
+
+            try {
+                const params = new URLSearchParams({
+                    strongs,
+                    reference,
+                    lemma: lemma || '',
+                    language: language || 'Greek'
+                });
+                const resp = await fetch('/Home/GetSynonyms?' + params.toString());
+                if (!resp.ok) {
+                    const errBody = await resp.json().catch(() => ({ error: resp.statusText }));
+                    this.synonymError = errBody?.error || `Error ${resp.status}`;
+                    return;
+                }
+                this.synonymData = await resp.json();
+            } catch (err) {
+                this.synonymError = 'Network error — could not reach the synonym engine.';
+                console.error('loadSynonyms error:', err);
+            } finally {
+                this.synonymLoading = false;
+            }
+        },
+
+        /** Close/dismiss the synonym panel */
+        closeSynonyms() {
+            this.synonymVisible = false;
+            this.synonymData = null;
+            this.synonymError = null;
+            this.synonymActiveRef = '';
+        },
+
+        /** Confidence badge colour (green → amber → red) */
+        confidenceClass(score) {
+            if (score >= 0.80) return 'conf-high';
+            if (score >= 0.55) return 'conf-mid';
+            return 'conf-low';
+        },
+
+        /** Relationship label friendly display */
+        relationshipLabel(rel) {
+            const map = {
+                'direct_synonym': 'Direct Synonym',
+                'lxx_translation_equivalent': 'LXX Equivalent',
+                'semantic_neighbor': 'Semantic Neighbor',
+                'antonym': 'Antonym'
+            };
+            return map[rel] || rel;
         }
     }));
 });

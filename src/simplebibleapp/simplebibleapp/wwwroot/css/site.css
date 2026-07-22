@@ -1313,3 +1313,315 @@ em {
 [x-cloak] {
     display: none !important;
 }
+
+/* ════════════════════════════════════════════════════════════
+   Synonym / Linguistic Engine — btn-syn-toggle
+   ════════════════════════════════════════════════════════════ */
+
+.btn-syn-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-syn-toggle:hover:not(:disabled) {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-syn-toggle.active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-syn-toggle:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Dark mode */
+.dark .btn-syn-toggle {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.12);
+    color: var(--text-secondary);
+}
+
+/* ════════════════════════════════════════════════════════════
+   Synonym Panel
+   ════════════════════════════════════════════════════════════ */
+
+.syn-panel {
+    margin-top: 20px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.syn-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, #6d28d9 100%);
+    color: #fff;
+}
+
+.syn-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.syn-ref-badge {
+    background: rgba(255,255,255,0.25);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.syn-close {
+    background: rgba(255,255,255,0.18);
+    border: none;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.syn-close:hover {
+    background: rgba(255,255,255,0.35);
+}
+
+/* Loading state */
+.syn-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 16px;
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+}
+
+/* Error state */
+.syn-error {
+    padding: 14px 16px;
+    margin: 12px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1.5px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-sm);
+    color: #dc2626;
+    font-size: 0.84rem;
+}
+
+/* Target word card */
+.syn-card {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.syn-lemma {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.2;
+}
+
+.syn-translit {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 2px;
+}
+
+.syn-gloss {
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+/* Sections */
+.syn-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.syn-section-label {
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+/* Exegetical context rows */
+.syn-context-row {
+    display: flex;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 4px;
+}
+
+.syn-context-key {
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 70px;
+    flex-shrink: 0;
+}
+
+/* Network grid */
+.syn-network-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.syn-node {
+    background: var(--bg-card-hover);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    border-left: 4px solid var(--primary);
+}
+
+.syn-node:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    transform: translateX(2px);
+}
+
+/* Relationship-specific left-border accents */
+.syn-node.rel-direct_synonym         { border-left-color: var(--success); }
+.syn-node.rel-lxx_translation_equivalent { border-left-color: #f59e0b; }
+.syn-node.rel-semantic_neighbor      { border-left-color: var(--primary); }
+.syn-node.rel-antonym                { border-left-color: #ef4444; }
+
+.syn-node-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.syn-node-lemma {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.syn-node-strongs {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+}
+
+.syn-node-translit {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.syn-node-gloss {
+    font-size: 0.84rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.syn-node-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.syn-rel-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.rel-direct_synonym        .syn-rel-badge { background: var(--success-light); color: var(--success); }
+.rel-lxx_translation_equivalent .syn-rel-badge { background: rgba(245,158,11,0.1); color: #b45309; }
+.rel-antonym               .syn-rel-badge { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+/* Confidence badges */
+.syn-conf-badge {
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 20px;
+}
+
+.conf-high { background: var(--success-light); color: var(--success); }
+.conf-mid  { background: rgba(245,158,11,0.12); color: #b45309; }
+.conf-low  { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+.syn-node-notes {
+    margin-top: 5px;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    font-style: italic;
+    border-top: 1px solid var(--border-color);
+    padding-top: 5px;
+}
+
+/* Dark mode adjustments for synonym panel */
+.dark .syn-panel {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.1);
+}
+
+.dark .syn-node {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.1);
+}
+
+.dark .syn-node:hover {
+    background: rgba(139,92,246,0.12);
+}
+
+.dark .syn-context-row { color: var(--text-secondary); }
+.dark .syn-gloss { color: #e2e8f0; }
