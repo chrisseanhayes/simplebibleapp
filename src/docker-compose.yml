@@ -34,6 +34,7 @@ services:
     volumes:
       - ~/.gemini:/root/.gemini
       - ./dataplane:/app/dataplane
+      - ./dataprotection-keys:/root/.aspnet/DataProtection-Keys
   sbaredis:
     image: "redis:alpine"
     command: redis-server --appendonly yes
