@@ -468,6 +468,11 @@
                                 <span class="notes-list-count" x-text="chapterNotesCount + ' verse' + (chapterNotesCount === 1 ? '' : 's')"></span>
                             </div>
 
+                            <div x-show="selectedVerseForNotes !== null" class="mb-2" style="font-size: 0.85rem; display: flex; justify-content: space-between; background: var(--bg-card-hover); padding: 4px 8px; border-radius: 4px;">
+                                <span>Filtered to Verse <strong x-text="selectedVerseForNotes"></strong></span>
+                                <a href="#" x-on:click.prevent="highlightVerse(null, false); window.history.replaceState(null, '', window.location.pathname + window.location.search);" style="color: var(--primary);">Clear</a>
+                            </div>
+
                             <div x-show="notesLoading" class="text-center py-3">
                                 <i class="fas fa-spinner fa-spin text-muted"></i>
                             </div>
@@ -478,9 +483,15 @@
                                 <p style="font-size:0.8rem; color:var(--text-muted);">Click any verse number in the text to start.</p>
                             </div>
 
+                            <div x-show="!notesLoading && selectedVerseForNotes !== null && !verseHasNote(selectedVerseForNotes)" class="notes-empty-state">
+                                <i class="fas fa-filter"></i>
+                                <p>No notes for Verse <span x-text="selectedVerseForNotes"></span>.</p>
+                                <button class="btn btn-primary btn-sm mt-2" x-on:click="openNoteEditor(selectedVerseForNotes)">Add Note</button>
+                            </div>
+
                             <!-- Per-verse note groups -->
                             <template x-for="(entry, verse) in chapterNotes" :key="verse">
-                                <div x-show="entry.personal || entry.aiNotes.length > 0" class="note-verse-group">
+                                <div x-show="(selectedVerseForNotes === null || selectedVerseForNotes === parseInt(verse)) && (entry.personal || entry.aiNotes.length > 0)" class="note-verse-group">
 
                                     <!-- Verse header row -->
                                     <div class="note-verse-group-header" x-on:click="openNoteEditorForVerse(parseInt(verse))">

@@ -61,6 +61,9 @@ document.addEventListener('alpine:init', () => {
         aiLoading: false,
         aiError: null,
 
+        // ── Verse Selection state (for filtering notes) ──────────────────────
+        selectedVerseForNotes: null,
+
         getSavedLemma() {
             try {
                 return sessionStorage.getItem('selectedLemma');
@@ -204,27 +207,26 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // Scan the DOM and highlight the targeted verse based on the URL anchor
-        highlightTargetedVerse() {
-            // Remove previous verse highlights
+        // Helper to visually highlight a verse without necessarily scrolling
+        highlightVerse(verseNum, scroll = false) {
             document.querySelectorAll('.active-verse-highlight').forEach(el => {
                 el.classList.remove('active-verse-highlight');
             });
 
-            const hash = window.location.hash;
-            if (!hash || !hash.startsWith('#vs-')) return;
+            this.selectedVerseForNotes = verseNum;
 
-            const targetId = hash.substring(1);
+            if (verseNum === null) return;
+
+            const targetId = 'vs-' + verseNum;
             const targetEl = document.getElementById(targetId);
             if (!targetEl) return;
 
-            // Highlight the verse number itself
             targetEl.classList.add('active-verse-highlight');
 
-            // Scroll the highlighted verse into view
-            targetEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            if (scroll) {
+                targetEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
 
-            // Highlight sibling nodes until we hit the next verse-number or end of verse (BR)
             let sibling = targetEl.nextSibling;
             while (sibling) {
                 if (sibling.nodeType === Node.ELEMENT_NODE) {
@@ -234,6 +236,21 @@ document.addEventListener('alpine:init', () => {
                     sibling.classList.add('active-verse-highlight');
                 }
                 sibling = sibling.nextSibling;
+            }
+        },
+
+        // Scan the DOM and highlight the targeted verse based on the URL anchor
+        highlightTargetedVerse() {
+            const hash = window.location.hash;
+            if (!hash || !hash.startsWith('#vs-')) {
+                this.highlightVerse(null, false);
+                return;
+            }
+
+            const targetId = hash.substring(1);
+            const v = parseInt(targetId.replace('vs-', ''));
+            if (!isNaN(v)) {
+                this.highlightVerse(v, true);
             }
         },
 
@@ -259,6 +276,26 @@ document.addEventListener('alpine:init', () => {
         // Click handler to load references for a word
         async getref(lemma, event) {
             if (!lemma) return;
+
+            if (event && event.target) {
+                let el = event.target;
+                let prev = el.previousElementSibling;
+                while (prev) {
+                    if (prev.classList && prev.classList.contains('verse-number')) {
+                        const verseNum = parseInt(prev.id.replace('vs-', ''));
+                        if (!isNaN(verseNum)) {
+                            // Update URL hash without scrolling
+                            if (window.location.hash !== '#vs-' + verseNum) {
+                                window.history.replaceState(null, '', '#vs-' + verseNum);
+                            }
+                            this.highlightVerse(verseNum, false);
+                        }
+                        break;
+                    }
+                    prev = prev.previousElementSibling;
+                }
+            }
+
             this.htmlItems = [];
             this.defActiveTab = null;
             
@@ -550,6 +587,17 @@ document.addEventListener('alpine:init', () => {
             if (!reference) return;
             if (this.insightLoading) return;
             
+            const parts = reference.split(':');
+            if (parts.length > 1) {
+                const v = parseInt(parts[parts.length - 1]);
+                if (!isNaN(v)) {
+                    if (window.location.hash !== '#vs-' + v) {
+                        window.history.replaceState(null, '', '#vs-' + v);
+                    }
+                    this.highlightVerse(v, false);
+                }
+            }
+
             // Open sidebar and switch to insight tab
             this.fullbible = false;
             this.sidebarTab = 'insight';
@@ -660,6 +708,13 @@ document.addEventListener('alpine:init', () => {
         /** Open the note editor for the given verse number (navigates to Notes tab). */
         openNoteEditor(verse) {
             if (!this.isAuthenticated) return;
+            
+            // Highlight and select the verse
+            if (window.location.hash !== '#vs-' + verse) {
+                window.history.replaceState(null, '', '#vs-' + verse);
+            }
+            this.highlightVerse(verse, false);
+            
             this.fullbible = false;
             this.sidebarTab = 'notes';
             this.noteEditorVerse = verse;
