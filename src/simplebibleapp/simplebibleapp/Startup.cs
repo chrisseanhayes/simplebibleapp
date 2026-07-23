@@ -7,15 +7,19 @@ using Lamar;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using NLog.Web;
 using NLog.Web.AspNetCore;
+using simplebibleapp.Data;
 using simplebibleapp.LinguisticEngine.Cache;
 using simplebibleapp.LinguisticEngine.Services;
+using simplebibleapp.Models;
 using simplebibleapp.xmlbible;
 using simplebibleapp.xmlbible.search;
 using simplebibleapp.xmlbiblerepository;
@@ -45,11 +49,38 @@ namespace simplebibleapp
         {
             services.AddMvc();
             services.AddSignalR();
-            
+
             services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 
             // In-memory cache for the synonym engine (avoids repeated Gemini CLI calls)
             services.AddMemoryCache();
+
+            // ASP.NET Core Identity with SQLite
+            var usersDbPath = Configuration.GetConnectionString("UsersDb")
+                ?? $"Data Source={Path.Combine(AppContext.BaseDirectory, "users.db")}";
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlite(usersDbPath));
+
+            services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+            {
+                options.Password.RequireDigit = true;
+                options.Password.RequiredLength = 6;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequireUppercase = false;
+                options.SignIn.RequireConfirmedEmail = false;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
+
+            services.ConfigureApplicationCookie(options =>
+            {
+                options.LoginPath = "/Account/Login";
+                options.LogoutPath = "/Account/Logout";
+                options.AccessDeniedPath = "/Account/Login";
+                options.Cookie.HttpOnly = true;
+                options.ExpireTimeSpan = TimeSpan.FromDays(14);
+                options.SlidingExpiration = true;
+            });
 
             services.AddDistributedRedisCache(o =>
             {
@@ -139,6 +170,10 @@ namespace simplebibleapp
                 // Ensure the verse insight cache table exists
                 var verseCache = scope.ServiceProvider.GetRequiredService<VerseInsightCache>();
                 verseCache.EnsureTableCreated();
+
+                // Auto-migrate the Identity database (creates users.db + tables on first run)
+                var identityDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                identityDb.Database.Migrate();
             }
 
             var fordwardedHeaderOptions = new ForwardedHeadersOptions
@@ -167,6 +202,8 @@ namespace simplebibleapp
             app.UseSession();
 
             app.UseRouting();
+
+            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {

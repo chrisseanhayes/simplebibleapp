@@ -1,3 +1,6 @@
+@using Microsoft.AspNetCore.Identity
+@using simplebibleapp.Models
+@inject SignInManager<ApplicationUser> SignInManager
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,12 +75,41 @@
             </div>
             
             <div class="header-right">
-                <!-- Action Buttons -->
                 <div class="action-buttons">
                     <!-- Theme Toggle -->
                     <button x-on:click="toggleTheme()" class="theme-toggle" aria-label="Toggle dark mode">
                         <i class="fas" x-bind:class="dark ? 'fa-sun' : 'fa-moon'"></i>
                     </button>
+
+                    <!-- Auth Controls -->
+                    @if (SignInManager.IsSignedIn(User))
+                    {
+                        <div class="auth-user-block">
+                            <span class="auth-username">
+                                <i class="fas fa-user-circle"></i>
+                                @User.Identity.Name
+                            </span>
+                            <form asp-controller="Account" asp-action="Logout" method="post" style="display:inline;">
+                                <button type="submit" class="auth-logout-btn" title="Sign out">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>Sign out</span>
+                                </button>
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="auth-links">
+                            <a asp-controller="Account" asp-action="Login" class="auth-header-link auth-header-link--login">
+                                <i class="fas fa-sign-in-alt"></i>
+                                Sign in
+                            </a>
+                            <a asp-controller="Account" asp-action="Register" class="auth-header-link auth-header-link--register">
+                                <i class="fas fa-user-plus"></i>
+                                Register
+                            </a>
+                        </div>
+                    }
                 </div>
             </div>
         </header>

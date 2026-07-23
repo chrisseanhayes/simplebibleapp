@@ -1,0 +1,59 @@
+@model simplebibleapp.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Sign In";
+}
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+            <h1 class="auth-title">Welcome Back</h1>
+            <p class="auth-subtitle">Sign in to your SimpleBible account</p>
+        </div>
+
+        <form asp-action="Login" method="post" class="auth-form">
+            <input type="hidden" asp-for="@(ViewData["ReturnUrl"] as string)" name="returnUrl" />
+            <div asp-validation-summary="All" class="auth-error-summary"></div>
+
+            <div class="form-group">
+                <label asp-for="Email" class="form-label">Email address</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input asp-for="Email" class="form-input" placeholder="you@example.com" autocomplete="email" />
+                </div>
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Password" class="form-label">Password</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input asp-for="Password" class="form-input" placeholder="Your password" autocomplete="current-password" />
+                </div>
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+
+            <div class="form-group form-group--inline">
+                <label class="checkbox-label">
+                    <input asp-for="RememberMe" type="checkbox" class="checkbox-input" />
+                    <span class="checkbox-text">Remember me</span>
+                </label>
+            </div>
+
+            <button type="submit" class="auth-btn">
+                <i class="fas fa-sign-in-alt"></i>
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Don't have an account? <a asp-controller="Account" asp-action="Register" class="auth-link">Create one</a></p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}
