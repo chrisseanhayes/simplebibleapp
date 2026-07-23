@@ -53,6 +53,8 @@ namespace simplebibleapp.LinguisticEngine.Services
             };
 
             // agy -p <prompt>  — non-interactive print mode, response goes straight to stdout
+            startInfo.ArgumentList.Add("--model");
+            startInfo.ArgumentList.Add("flash");
             startInfo.ArgumentList.Add("-p");
             startInfo.ArgumentList.Add(prompt);
 

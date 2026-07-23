@@ -54,6 +54,8 @@ namespace simplebibleapp.Services
                 StandardOutputEncoding = Encoding.UTF8
             };
 
+            startInfo.ArgumentList.Add("--model");
+            startInfo.ArgumentList.Add("flash");
             startInfo.ArgumentList.Add("-p");
             startInfo.ArgumentList.Add(prompt);
 
