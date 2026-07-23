@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
 using simplebibleapp.Hubs;
 using simplebibleapp.Models;
-using simplebibleapp.Services;
+using Orleans;
+using simplebibleapp.Orleans.Interfaces;
 
 namespace simplebibleapp.Controllers
 {
@@ -29,43 +31,21 @@ namespace simplebibleapp.Controllers
                 return BadRequest(new { error = "Reference is required." });
 
             using var scope = _serviceScopeFactory.CreateScope();
-            var l1 = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
-            var l2 = scope.ServiceProvider.GetRequiredService<VerseInsightCache>();
+            var orleansClient = scope.ServiceProvider.GetRequiredService<IClusterClient>();
+            var grain = orleansClient.GetGrain<IVerseInsightGrain>(reference);
 
-            string l1Key = $"verse_insight:{reference}";
-            string? cachedMarkdown = null;
-
-            if (l1.TryGetValue(l1Key, out string? l1Cached) && !string.IsNullOrEmpty(l1Cached))
-            {
-                cachedMarkdown = l1Cached;
-            }
-            else
-            {
-                var l2Cached = await l2.GetAsync(reference, CancellationToken.None);
-                if (!string.IsNullOrEmpty(l2Cached))
-                {
-                    cachedMarkdown = l2Cached;
-                    // Warm L1
-                    l1.Set(l1Key, l2Cached, new MemoryCacheEntryOptions
-                    {
-                        SlidingExpiration = TimeSpan.FromHours(24)
-                    });
-                }
-            }
+            var cachedMarkdown = await grain.GetInsightAsync(reference);
 
             if (!string.IsNullOrEmpty(cachedMarkdown))
             {
-                var pipeline = new MarkdownPipelineBuilder()
-                    .UseAdvancedExtensions()
-                    .Build();
-
-                var htmlContent = Markdown.ToHtml(cachedMarkdown, pipeline);
-
+                var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+                var html = Markdown.ToHtml(cachedMarkdown, pipeline);
+                
                 var viewModel = new VerseInsightViewModel
                 {
                     Reference = reference,
-                    RawMarkdown = cachedMarkdown,
-                    RenderedHtml = htmlContent
+                    RenderedHtml = html,
+                    RawMarkdown = cachedMarkdown
                 };
 
                 return Json(new { cached = true, data = viewModel });
@@ -91,12 +71,13 @@ namespace simplebibleapp.Controllers
             {
                 using var scope = _serviceScopeFactory.CreateScope();
                 var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<LinguisticHub>>();
-                var agyCliService = scope.ServiceProvider.GetRequiredService<IVerseInsightCliService>();
+                var orleansClient = scope.ServiceProvider.GetRequiredService<IClusterClient>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<ScriptureController>>();
 
                 try
                 {
-                    var markdownResponse = await agyCliService.GetVerseInsightAsync(request.Reference, CancellationToken.None);
+                    var grain = orleansClient.GetGrain<IVerseInsightGrain>(request.Reference);
+                    var markdownResponse = await grain.GetOrGenerateInsightAsync(request.Reference, request.Reference);
 
                     if (!string.IsNullOrEmpty(markdownResponse))
                     {

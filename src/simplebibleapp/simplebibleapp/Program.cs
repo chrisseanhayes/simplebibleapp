@@ -1,15 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Lamar.Microsoft.DependencyInjection;
+
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLog.Web;
+using Orleans;
+using Orleans.Hosting;
 
 namespace simplebibleapp
 {
@@ -22,6 +24,20 @@ namespace simplebibleapp
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseOrleansClient(clientBuilder =>
+                {
+                    var connectionString = Environment.GetEnvironmentVariable("ORLEANS_AZURE_STORAGE_CONNECTION_STRING") 
+                                           ?? "UseDevelopmentStorage=true";
+                    clientBuilder.UseAzureStorageClustering(options =>
+                    {
+                        options.ConfigureTableServiceClient(connectionString);
+                    });
+                    clientBuilder.Configure<global::Orleans.Configuration.ClusterOptions>(options =>
+                    {
+                        options.ClusterId = "dev";
+                        options.ServiceId = "sba";
+                    });
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
@@ -45,7 +61,6 @@ namespace simplebibleapp
                     logging.AddConsole();
                     logging.AddDebug();
                 })
-                .UseLamar()
                 .UseNLog();
     }
 }

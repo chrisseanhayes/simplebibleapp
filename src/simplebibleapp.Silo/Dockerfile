@@ -4,13 +4,13 @@ WORKDIR /app
 
 # Copy everything and publish
 COPY . ./
-RUN dotnet publish ./simplebibleapp/simplebibleapp/simplebibleapp.csproj -c Release -o /app/out
+RUN dotnet publish ./simplebibleapp.Silo/simplebibleapp.Silo.csproj -c Release -o /app/out
 
-# 2. Use the ASP.NET Core runtime image
+# 2. Use the ASP.NET Core runtime image (or Runtime image)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
-# Install Antigravity CLI (agy) so AgyCliService can spawn it
+# Install Antigravity CLI (agy) so the Silo can spawn it
 RUN apt-get update && apt-get install -y curl ca-certificates --no-install-recommends \
     && curl -fsSL https://antigravity.google/cli/install.sh | bash \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -18,10 +18,10 @@ RUN apt-get update && apt-get install -y curl ca-certificates --no-install-recom
 # Copy the published output
 COPY --from=build-env /app/out .
 
-# Handle .NET 8 port configuration; also expose agy install location to PATH
-ENV ASPNETCORE_HTTP_PORTS=8080
+# Expose agy install location to PATH
 ENV PATH="/root/.local/bin:${PATH}"
-EXPOSE 8080
 
-VOLUME [ "./mnt" ]
-ENTRYPOINT ["dotnet", "simplebibleapp.dll"]
+# Orleans Silo ports
+EXPOSE 11111 30000
+
+ENTRYPOINT ["dotnet", "simplebibleapp.Silo.dll"]

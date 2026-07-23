@@ -42,3 +42,4 @@ msbuild.wrn
 .gemini
 
 dataplane/
+azurite-data/

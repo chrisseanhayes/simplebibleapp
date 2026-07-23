@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Lamar;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -28,7 +28,6 @@ using simplebibleapp.xmldictionary;
 using Microsoft.Extensions.Caching;
 using NLog.Extensions.Logging;
 using simplebibleapp.Hubs;
-using simplebibleapp.Services;
 
 namespace simplebibleapp
 {
@@ -100,53 +99,50 @@ namespace simplebibleapp
                 loggingBuilder.AddConfiguration(Configuration.GetSection("Logging"));
                 loggingBuilder.AddNLog(Configuration);
             });
-        }
- 
-        public void ConfigureContainer(ServiceRegistry registry)
-        {
-            registry.Scan(scan => {
-                scan.Assembly("simplebibleapp.xmlbible");
-                scan.WithDefaultConventions();
-                scan.AddAllTypesOf<IState>();
-                scan.Assembly("simplebibleapp.xmlbiblerepository");
-                scan.WithDefaultConventions();
-                scan.AddAllTypesOf<IXmlBibleSearchAction>();
-                scan.Assembly("simplebibleapp.xmldictionary");
-                scan.WithDefaultConventions();
-                scan.AddAllTypesOf<IGreekDefinitionState>();
-                scan.AddAllTypesOf<IHebrewDefinitionState>();
-                scan.TheCallingAssembly();
-                scan.WithDefaultConventions();
-            });
-            registry.For<IChapterBuilderFactory>().Add<ChapterBuilderFactory>();
-            registry.For<IWordCountBuilderFactory>().Add<WordCountBuilderFactory>();
-            registry.For<IVerseSearch>().Use<SqliteVerseSearch>();
 
-            // Verse insight engine: VerseInsightCliService (inner) -> CachedVerseInsightCliService (L1 memory + L2 SQLite)
-            registry.For<VerseInsightCliService>().Use<VerseInsightCliService>();
-            registry.ForSingletonOf<VerseInsightCache>().Use<VerseInsightCache>();
-            registry.For<IVerseInsightCliService>().Use(ctx =>
-            {
-                var inner  = ctx.GetInstance<VerseInsightCliService>();
-                var l1     = ctx.GetInstance<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
-                var l2     = ctx.GetInstance<VerseInsightCache>();
-                var logger = ctx.GetInstance<Microsoft.Extensions.Logging.ILogger<CachedVerseInsightCliService>>();
-                return new CachedVerseInsightCliService(inner, l1, l2, logger);
-            }).Scoped();
+            // Register Azure BlobServiceClient
+            var storageConn = Environment.GetEnvironmentVariable("ORLEANS_AZURE_STORAGE_CONNECTION_STRING") 
+                           ?? "UseDevelopmentStorage=true";
+            services.AddSingleton(new Azure.Storage.Blobs.BlobServiceClient(storageConn));
+
+            services.Scan(scan => scan
+                .FromAssemblies(
+                    System.Reflection.Assembly.Load("simplebibleapp.xmlbible"),
+                    System.Reflection.Assembly.Load("simplebibleapp.xmlbiblerepository"),
+                    System.Reflection.Assembly.Load("simplebibleapp.xmldictionary"),
+                    System.Reflection.Assembly.GetExecutingAssembly())
+                .AddClasses(c => c.AssignableTo<IState>())
+                    .AsImplementedInterfaces()
+                    .WithTransientLifetime()
+                .AddClasses(c => c.AssignableTo<IXmlBibleSearchAction>())
+                    .AsImplementedInterfaces()
+                    .WithTransientLifetime()
+                .AddClasses(c => c.AssignableTo<IGreekDefinitionState>())
+                    .AsImplementedInterfaces()
+                    .WithTransientLifetime()
+                .AddClasses(c => c.AssignableTo<IHebrewDefinitionState>())
+                    .AsImplementedInterfaces()
+                    .WithTransientLifetime()
+                .AddClasses()
+                    .AsMatchingInterface()
+                    .WithTransientLifetime()
+            );
+
+            services.AddTransient<IChapterBuilderFactory, ChapterBuilderFactory>();
+            services.AddTransient<IWordCountBuilderFactory, WordCountBuilderFactory>();
+            services.AddTransient<IVerseSearch, SqliteVerseSearch>();
 
             // Synonym engine: AgyCliService (inner) → CachedAgyLinguisticService (L1 memory + L2 SQLite)
-            registry.For<AgyCliService>().Use<AgyCliService>();
-            registry.ForSingletonOf<AgyLinguisticCache>().Use<AgyLinguisticCache>();
-            registry.For<IAgyLinguisticService>().Use(ctx =>
+            services.AddTransient<AgyCliService>();
+            services.AddSingleton<AgyLinguisticCache>();
+            services.AddScoped<IAgyLinguisticService>(ctx =>
             {
-                var inner  = ctx.GetInstance<AgyCliService>();
-                var l1     = ctx.GetInstance<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
-                var l2     = ctx.GetInstance<AgyLinguisticCache>();
-                var logger = ctx.GetInstance<Microsoft.Extensions.Logging.ILogger<CachedAgyLinguisticService>>();
+                var inner  = ctx.GetRequiredService<AgyCliService>();
+                var l1     = ctx.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                var l2     = ctx.GetRequiredService<AgyLinguisticCache>();
+                var logger = ctx.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CachedAgyLinguisticService>>();
                 return new CachedAgyLinguisticService(inner, l1, l2, logger);
-            }).Scoped();
-            // Verse-note AI question service (user asks a question about a verse)
-            registry.For<IVerseNoteAiService>().Use<VerseNoteAiService>();
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -169,13 +165,14 @@ namespace simplebibleapp
                 var agyCache = scope.ServiceProvider.GetRequiredService<AgyLinguisticCache>();
                 agyCache.EnsureTableCreated();
 
-                // Ensure the verse insight cache table exists
-                var verseCache = scope.ServiceProvider.GetRequiredService<VerseInsightCache>();
-                verseCache.EnsureTableCreated();
-
                 // Auto-migrate the Identity database (creates users.db + tables on first run)
                 var identityDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 identityDb.Database.Migrate();
+                
+                // Ensure Blob container exists
+                var blobServiceClient = scope.ServiceProvider.GetRequiredService<Azure.Storage.Blobs.BlobServiceClient>();
+                var containerClient = blobServiceClient.GetBlobContainerClient("usernotes");
+                containerClient.CreateIfNotExists();
             }
 
             var fordwardedHeaderOptions = new ForwardedHeadersOptions

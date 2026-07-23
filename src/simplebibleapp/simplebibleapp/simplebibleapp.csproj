@@ -4,7 +4,7 @@
     <PublishWithAspNetCoreTargetManifest>false</PublishWithAspNetCoreTargetManifest>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Lamar.Microsoft.DependencyInjection" Version="14.0.1" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.19.1" />
     <PackageReference Include="FontAwesome" Version="4.7.0" />
     <PackageReference Include="bootstrap" Version="4.1.1" />
     <PackageReference Include="AngularJS.Core" Version="1.6.8" />
@@ -15,10 +15,13 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.23" />
     <PackageReference Include="Microsoft.Extensions.Caching.Redis" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Client" Version="10.2.2" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" Version="10.2.2" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="NLog" Version="4.7.*" />
     <PackageReference Include="NLog.Web.AspNetCore" Version="4.12.0" />
+    <PackageReference Include="Scrutor" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.0" />
@@ -27,6 +30,7 @@
     <ProjectReference Include="..\simplebibleapp.xmlbiblerepository\simplebibleapp.xmlbiblerepository.csproj" />
     <ProjectReference Include="..\simplebibleapp.xmlbible\simplebibleapp.xmlbible.csproj" />
     <ProjectReference Include="..\simplebibleapp.xmldictionary\simplebibleapp.xmldictionary.csproj" />
+    <ProjectReference Include="..\..\simplebibleapp.Orleans.Interfaces\simplebibleapp.Orleans.Interfaces.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Views\Bible\Pronunciation.cs" />

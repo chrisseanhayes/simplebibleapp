@@ -5,41 +5,28 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Orleans;
+using simplebibleapp.Orleans.Interfaces;
 
-namespace simplebibleapp.Services
+namespace simplebibleapp.Orleans.Grains
 {
-    /// <summary>
-    /// Sends a user's free-form question about a specific verse to the AGY CLI
-    /// and returns the answer as a markdown string.
-    /// </summary>
-    public interface IVerseNoteAiService
+    public class VerseNoteJobGrain : Grain, IVerseNoteJobGrain
     {
-        Task<string> AskAboutVerseAsync(
-            string verseReference,
-            string userQuestion,
-            CancellationToken cancellationToken = default);
-    }
-
-    public class VerseNoteAiService : IVerseNoteAiService
-    {
-        private readonly ILogger<VerseNoteAiService> _logger;
+        private readonly ILogger<VerseNoteJobGrain> _logger;
         private readonly string _cliExecutablePath;
 
-        public VerseNoteAiService(IConfiguration configuration, ILogger<VerseNoteAiService> logger)
+        public VerseNoteJobGrain(ILogger<VerseNoteJobGrain> logger, IConfiguration config)
         {
             _logger = logger;
-            _cliExecutablePath = configuration["AgyCli:Path"] ?? "agy";
+            _cliExecutablePath = config["AgyCli:Path"] ?? "agy";
         }
 
-        public async Task<string> AskAboutVerseAsync(
-            string verseReference,
-            string userQuestion,
-            CancellationToken cancellationToken = default)
+        public async Task<string> GenerateNoteAsync(string reference, string question)
         {
             // Build a focused prompt that gives the AI the verse context + the user's question
             var prompt =
-                $"Bible verse context: {verseReference} (KJV / Textus Receptus / Masoretic). " +
-                $"User question: \"{userQuestion}\". " +
+                $"Bible verse context: {reference} (KJV / Textus Receptus / Masoretic). " +
+                $"User question: \"{question}\". " +
                 $"Answer the question directly and concisely, drawing on the original-language text, " +
                 $"historical context, and cultural background where relevant. " +
                 $"Format your response in clear markdown.";
@@ -70,7 +57,10 @@ namespace simplebibleapp.Services
                 var outputTask = process.StandardOutput.ReadToEndAsync();
                 var errorTask  = process.StandardError.ReadToEndAsync();
 
-                await process.WaitForExitAsync(cancellationToken);
+                // Wait up to 30 seconds for the CLI to return
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                
+                await process.WaitForExitAsync(cts.Token);
 
                 var output = await outputTask;
                 var error  = await errorTask;
@@ -86,13 +76,19 @@ namespace simplebibleapp.Services
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("AGY CLI cancelled for verse note AI on {Reference}", verseReference);
+                _logger.LogWarning("AGY CLI timed out or was cancelled for verse note AI on {Reference}", reference);
+                if (!process.HasExited) process.Kill();
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error executing AGY CLI for verse note AI on {Reference}", verseReference);
+                _logger.LogError(ex, "Error executing AGY CLI for verse note AI on {Reference}", reference);
                 throw;
+            }
+            finally
+            {
+                // Deactivate this transient worker grain after job is complete to free memory
+                DeactivateOnIdle();
             }
         }
     }
