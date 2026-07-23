@@ -142,7 +142,7 @@ namespace simplebibleapp.xmlbible.search
             var currentVerse = 0;
             var collect = false;
 
-            foreach (var node in chapterNode.SubNodes)
+            foreach (var node in FlattenVerseNodes(chapterNode))
             {
                 if (node is BeginVerseNode beginNode)
                 {
@@ -164,6 +164,31 @@ namespace simplebibleapp.xmlbible.search
             }
 
             return nodes;
+        }
+
+        private IEnumerable<NodeBase> FlattenVerseNodes(NodeBase node)
+        {
+            if (node == null) yield break;
+
+            if (node is BeginVerseNode || node is EndVerseNode || node is WordNode)
+            {
+                yield return node;
+                yield break;
+            }
+
+            if (node.SubNodes == null || !node.SubNodes.Any())
+            {
+                yield return node;
+                yield break;
+            }
+
+            foreach (var child in node.SubNodes)
+            {
+                foreach (var desc in FlattenVerseNodes(child))
+                {
+                    yield return desc;
+                }
+            }
         }
 
         private string GetHighlightedWordText(IEnumerable<NodeBase> nodes, string strongsNumber)
