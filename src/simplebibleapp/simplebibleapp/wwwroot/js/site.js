@@ -49,12 +49,17 @@ document.addEventListener('alpine:init', () => {
 
         // ── User Notes state ─────────────────────────────────────────────────
         isAuthenticated: false,
-        chapterNotes: {},        // { [verse]: { text, updatedAt, id } }
+        // Shape: { [verse]: { personal: {id,text,updatedAt}|null, aiNotes: [{id,prompt,text,updatedAt,renderedHtml}] } }
+        chapterNotes: {},
         notesLoading: false,
         noteEditorVerse: null,   // Which verse is currently open in the editor
         noteEditorText: '',
         noteSaving: false,
         noteSaveError: null,
+        // AI ask state
+        aiQuestion: '',
+        aiLoading: false,
+        aiError: null,
 
         getSavedLemma() {
             try {
@@ -167,6 +172,24 @@ document.addEventListener('alpine:init', () => {
                         this.insightError = msg || "Unknown error from server.";
                         this.insightLoading = false;
                     }
+                });
+
+                this.synonymHub.on("ReceiveAiNote", (payload) => {
+                    const n = payload.note;
+                    this.aiLoading = false;
+                    this.aiError = null;
+                    this.aiQuestion = '';
+                    const entry = this.chapterNotes[n.verse] || { personal: null, aiNotes: [] };
+                    entry.aiNotes = [
+                        ...entry.aiNotes,
+                        { id: n.id, prompt: n.prompt, text: n.noteText, updatedAt: n.updatedAt, renderedHtml: payload.renderedHtml }
+                    ];
+                    this.chapterNotes = { ...this.chapterNotes, [n.verse]: entry };
+                });
+
+                this.synonymHub.on("ReceiveAiNoteError", (err) => {
+                    this.aiLoading = false;
+                    this.aiError = err?.error || 'Unknown error generating AI note.';
                 });
 
                 this.synonymHub.start().then(() => {
@@ -593,8 +616,16 @@ document.addEventListener('alpine:init', () => {
 
         // ── User Notes ───────────────────────────────────────────────────────
 
+        /** Count of unique verses in this chapter that have at least one note. */
         get chapterNotesCount() {
-            return Object.keys(this.chapterNotes).length;
+            return Object.values(this.chapterNotes)
+                .filter(v => v.personal || v.aiNotes.length > 0).length;
+        },
+
+        /** True if verse has any note (personal or AI). Used for the amber note icon. */
+        verseHasNote(verse) {
+            const v = this.chapterNotes[verse];
+            return v && (v.personal || v.aiNotes.length > 0);
         },
 
         /** Load all notes for the current chapter from the server. */
@@ -608,7 +639,12 @@ document.addEventListener('alpine:init', () => {
                     const notes = await resp.json();
                     const map = {};
                     notes.forEach(n => {
-                        map[n.verse] = { id: n.id, text: n.noteText, updatedAt: n.updatedAt };
+                        if (!map[n.verse]) map[n.verse] = { personal: null, aiNotes: [] };
+                        if (n.noteType === 'Personal') {
+                            map[n.verse].personal = { id: n.id, text: n.noteText, updatedAt: n.updatedAt };
+                        } else {
+                            map[n.verse].aiNotes.push({ id: n.id, prompt: n.prompt, text: n.noteText, updatedAt: n.updatedAt, renderedHtml: null });
+                        }
                     });
                     this.chapterNotes = map;
                 } else if (resp.status === 401) {
@@ -627,8 +663,11 @@ document.addEventListener('alpine:init', () => {
             this.fullbible = false;
             this.sidebarTab = 'notes';
             this.noteEditorVerse = verse;
-            this.noteEditorText = this.chapterNotes[verse]?.text || '';
+            const entry = this.chapterNotes[verse];
+            this.noteEditorText = entry?.personal?.text || '';
             this.noteSaveError = null;
+            this.aiQuestion = '';
+            this.aiError = null;
             // Focus textarea after Alpine renders
             this.$nextTick(() => {
                 const ta = document.getElementById('note-textarea');
@@ -645,9 +684,11 @@ document.addEventListener('alpine:init', () => {
             this.noteEditorVerse = null;
             this.noteEditorText = '';
             this.noteSaveError = null;
+            this.aiQuestion = '';
+            this.aiError = null;
         },
 
-        /** Save (upsert) the current note. */
+        /** Save (upsert) the personal note for the current verse. */
         async saveNote() {
             if (this.noteEditorVerse === null) return;
             if (this.noteSaving) return;
@@ -666,16 +707,14 @@ document.addEventListener('alpine:init', () => {
                 });
                 if (resp.ok) {
                     const result = await resp.json();
+                    const verse = this.noteEditorVerse;
+                    const entry = { ...(this.chapterNotes[verse] || { personal: null, aiNotes: [] }) };
                     if (result.deleted) {
-                        delete this.chapterNotes[this.noteEditorVerse];
-                        // Force reactivity
-                        this.chapterNotes = { ...this.chapterNotes };
+                        entry.personal = null;
                     } else {
-                        this.chapterNotes = {
-                            ...this.chapterNotes,
-                            [result.verse]: { id: result.id, text: result.noteText, updatedAt: result.updatedAt }
-                        };
+                        entry.personal = { id: result.id, text: result.noteText, updatedAt: result.updatedAt };
                     }
+                    this.chapterNotes = { ...this.chapterNotes, [verse]: entry };
                     this.closeNoteEditor();
                 } else if (resp.status === 401) {
                     this.noteSaveError = 'You must be signed in to save notes.';
@@ -691,19 +730,20 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        /** Delete the note for the currently-open verse. */
+        /** Delete the personal note for the current verse. */
         async deleteNote() {
             if (this.noteEditorVerse === null) return;
-            const existing = this.chapterNotes[this.noteEditorVerse];
-            if (!existing) { this.closeNoteEditor(); return; }
+            const entry = this.chapterNotes[this.noteEditorVerse];
+            if (!entry?.personal) { this.closeNoteEditor(); return; }
             if (this.noteSaving) return;
             this.noteSaving = true;
             this.noteSaveError = null;
             try {
-                const resp = await fetch('/api/Notes/' + existing.id, { method: 'DELETE' });
+                const resp = await fetch('/api/Notes/' + entry.personal.id, { method: 'DELETE' });
                 if (resp.ok) {
-                    delete this.chapterNotes[this.noteEditorVerse];
-                    this.chapterNotes = { ...this.chapterNotes };
+                    const verse = this.noteEditorVerse;
+                    const updated = { ...(this.chapterNotes[verse] || { personal: null, aiNotes: [] }), personal: null };
+                    this.chapterNotes = { ...this.chapterNotes, [verse]: updated };
                     this.closeNoteEditor();
                 } else {
                     this.noteSaveError = 'Failed to delete note.';
@@ -712,6 +752,65 @@ document.addEventListener('alpine:init', () => {
                 this.noteSaveError = 'Network error.';
             } finally {
                 this.noteSaving = false;
+            }
+        },
+
+        /** Delete a specific AI note by id. */
+        async deleteAiNote(verse, noteId) {
+            try {
+                const resp = await fetch('/api/Notes/' + noteId, { method: 'DELETE' });
+                if (resp.ok) {
+                    const entry = { ...(this.chapterNotes[verse] || { personal: null, aiNotes: [] }) };
+                    entry.aiNotes = entry.aiNotes.filter(n => n.id !== noteId);
+                    this.chapterNotes = { ...this.chapterNotes, [verse]: entry };
+                }
+            } catch (err) {
+                console.error('deleteAiNote error:', err);
+            }
+        },
+
+        /**
+         * Submit an AI question about the current verse.
+         * The answer will arrive via SignalR ReceiveAiNote.
+         */
+        async askAi() {
+            if (!this.aiQuestion.trim() || this.aiLoading) return;
+            if (!this.synonymConnectionId) {
+                this.aiError = 'Still connecting to server, please wait a moment...';
+                return;
+            }
+            const verse = this.noteEditorVerse;
+            if (verse === null) return;
+
+            this.aiLoading = true;
+            this.aiError = null;
+
+            // Build a human-readable reference e.g. "John 3:16"
+            const reference = this.chapterHeading + ':' + verse;
+
+            try {
+                const resp = await fetch('/api/Notes/AskAi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bookAbbr: this.bookAbbr,
+                        chapter: this.chapter,
+                        verse: verse,
+                        reference: reference,
+                        question: this.aiQuestion.trim(),
+                        connectionId: this.synonymConnectionId
+                    })
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    this.aiError = err.error || 'Failed to submit question.';
+                    this.aiLoading = false;
+                }
+                // result arrives via SignalR ReceiveAiNote
+            } catch (err) {
+                this.aiError = 'Network error — could not reach server.';
+                this.aiLoading = false;
+                console.error('askAi error:', err);
             }
         },
 

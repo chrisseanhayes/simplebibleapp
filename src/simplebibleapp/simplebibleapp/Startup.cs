@@ -145,6 +145,8 @@ namespace simplebibleapp
                 var logger = ctx.GetInstance<Microsoft.Extensions.Logging.ILogger<CachedAgyLinguisticService>>();
                 return new CachedAgyLinguisticService(inner, l1, l2, logger);
             }).Scoped();
+            // Verse-note AI question service (user asks a question about a verse)
+            registry.For<IVerseNoteAiService>().Use<VerseNoteAiService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

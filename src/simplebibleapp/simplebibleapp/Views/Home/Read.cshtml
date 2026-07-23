@@ -396,10 +396,10 @@
                         <a href="/Account/Login" class="btn btn-primary btn-sm">Sign In</a>
                     </div>
 
-                    <!-- Logged in: inline note editor -->
+                    <!-- Logged in -->
                     <div x-show="isAuthenticated">
 
-                        <!-- Active note editor -->
+                        <!-- ── Active verse editor ── -->
                         <div x-show="noteEditorVerse !== null" class="note-editor-card" id="note-editor-panel">
                             <div class="note-editor-header">
                                 <span>
@@ -410,11 +410,16 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
+
+                            <!-- Personal note textarea -->
+                            <div class="note-section-label">
+                                <i class="fas fa-pencil-alt"></i> Personal Note
+                            </div>
                             <textarea id="note-textarea"
                                       class="note-textarea"
                                       x-model="noteEditorText"
-                                      placeholder="Write your study notes here…"
-                                      rows="5"
+                                      placeholder="Write your own study notes here…"
+                                      rows="4"
                                       x-on:keydown.ctrl.enter.prevent="saveNote()"
                                       x-on:keydown.meta.enter.prevent="saveNote()"></textarea>
                             <div class="note-editor-actions">
@@ -423,40 +428,95 @@
                                     <span x-text="noteSaving ? 'Saving…' : 'Save'"></span>
                                 </button>
                                 <button class="btn btn-sm btn-light" x-on:click="closeNoteEditor()" :disabled="noteSaving">Cancel</button>
-                                <button class="btn btn-sm btn-danger" x-show="noteEditorVerse !== null && chapterNotes[noteEditorVerse]" x-on:click="deleteNote()" :disabled="noteSaving" style="margin-left:auto;">
+                                <button class="btn btn-sm btn-danger"
+                                        x-show="noteEditorVerse !== null && chapterNotes[noteEditorVerse]?.personal"
+                                        x-on:click="deleteNote()" :disabled="noteSaving" style="margin-left:auto;">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                             <div x-show="noteSaveError" class="note-save-error" x-text="noteSaveError"></div>
+
+                            <!-- ── AI Ask box ── -->
+                            <div class="note-ai-divider">
+                                <i class="fas fa-robot"></i> Ask AI about this verse
+                            </div>
+                            <div class="note-ai-input-row">
+                                <input id="ai-question-input"
+                                       class="note-ai-input"
+                                       type="text"
+                                       x-model="aiQuestion"
+                                       placeholder="e.g. Why did they use rocks?"
+                                       x-on:keydown.enter.prevent="askAi()"
+                                       :disabled="aiLoading" />
+                                <button class="btn btn-sm note-ai-btn"
+                                        x-on:click="askAi()"
+                                        :disabled="aiLoading || !aiQuestion.trim()"
+                                        title="Ask AI">
+                                    <i class="fas" :class="aiLoading ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+                                </button>
+                            </div>
+                            <div x-show="aiLoading" class="note-ai-status">
+                                <i class="fas fa-spinner fa-spin"></i> AGY is thinking…
+                            </div>
+                            <div x-show="aiError && !aiLoading" class="note-save-error" x-text="aiError"></div>
                         </div>
 
-                        <!-- Chapter notes list -->
+                        <!-- ── Chapter notes list ── -->
                         <div class="notes-chapter-list">
                             <div class="notes-list-header">
                                 <span>Notes in this chapter</span>
-                                <span class="notes-list-count" x-text="chapterNotesCount + ' note' + (chapterNotesCount === 1 ? '' : 's')"></span>
+                                <span class="notes-list-count" x-text="chapterNotesCount + ' verse' + (chapterNotesCount === 1 ? '' : 's')"></span>
                             </div>
 
-                            <!-- Loading -->
                             <div x-show="notesLoading" class="text-center py-3">
                                 <i class="fas fa-spinner fa-spin text-muted"></i>
                             </div>
 
-                            <!-- Empty state -->
                             <div x-show="!notesLoading && chapterNotesCount === 0" class="notes-empty-state">
                                 <i class="fas fa-feather-alt"></i>
                                 <p>No notes yet for this chapter.</p>
-                                <p style="font-size:0.8rem; color:var(--text-muted);">Click any verse number in the text, then open this tab.</p>
+                                <p style="font-size:0.8rem; color:var(--text-muted);">Click any verse number in the text to start.</p>
                             </div>
 
-                            <!-- Notes list -->
-                            <template x-for="(note, verse) in chapterNotes" :key="verse">
-                                <div class="note-list-item" x-on:click="openNoteEditorForVerse(parseInt(verse))">
-                                    <div class="note-list-verse">
-                                        <span x-text="'v.' + verse"></span>
+                            <!-- Per-verse note groups -->
+                            <template x-for="(entry, verse) in chapterNotes" :key="verse">
+                                <div x-show="entry.personal || entry.aiNotes.length > 0" class="note-verse-group">
+
+                                    <!-- Verse header row -->
+                                    <div class="note-verse-group-header" x-on:click="openNoteEditorForVerse(parseInt(verse))">
+                                        <span class="note-list-verse-pill" x-text="'v.' + verse"></span>
+                                        <span class="note-verse-group-counts">
+                                            <span x-show="entry.personal" title="Personal note"><i class="fas fa-pencil-alt"></i></span>
+                                            <span x-show="entry.aiNotes.length > 0" x-text="entry.aiNotes.length + ' AI'" title="AI notes" class="note-ai-count-badge"></span>
+                                        </span>
                                     </div>
-                                    <div class="note-list-text" x-text="note.text"></div>
-                                    <div class="note-list-meta" x-text="formatNoteDate(note.updatedAt)"></div>
+
+                                    <!-- Personal note preview -->
+                                    <div x-show="entry.personal" class="note-list-item note-personal-item"
+                                         x-on:click="openNoteEditorForVerse(parseInt(verse))">
+                                        <div class="note-list-text" x-text="entry.personal?.text"></div>
+                                        <div class="note-list-meta" x-text="formatNoteDate(entry.personal?.updatedAt)"></div>
+                                    </div>
+
+                                    <!-- AI notes -->
+                                    <template x-for="(ain, idx) in entry.aiNotes" :key="ain.id">
+                                        <div class="note-list-item note-ai-item">
+                                            <div class="note-ai-prompt-label">
+                                                <i class="fas fa-robot"></i>
+                                                <span x-text="ain.prompt"></span>
+                                            </div>
+                                            <div class="note-list-text" x-show="!ain.renderedHtml" x-text="ain.text"></div>
+                                            <div class="note-ai-rendered" x-show="ain.renderedHtml" x-html="ain.renderedHtml"></div>
+                                            <div class="note-ai-item-footer">
+                                                <span class="note-list-meta" x-text="formatNoteDate(ain.updatedAt)"></span>
+                                                <button class="note-ai-delete-btn"
+                                                        x-on:click.stop="deleteAiNote(parseInt(verse), ain.id)"
+                                                        title="Delete this AI note">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
