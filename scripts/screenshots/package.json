@@ -1,0 +1,12 @@
+{
+  "name": "sba-screenshots",
+  "version": "1.0.0",
+  "description": "Script to take screenshots of Simple Bible App using Playwright",
+  "main": "take-screenshots.js",
+  "scripts": {
+    "start": "node take-screenshots.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}
