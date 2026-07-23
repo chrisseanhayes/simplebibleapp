@@ -4,6 +4,7 @@
 @model ReadViewModel
 @{
     ViewBag.Title = Model.ChapterHeading;
+    ViewBag.UseCustomHeader = true;
     
     // Parse book name from ChapterHeading (e.g., "Genesis 1" -> "Genesis", "1 John 2" -> "1 John")
     var chapterHeading = Model.ChapterHeading;
@@ -19,61 +20,109 @@
     };
 }
 
-<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter, '@Html.Raw(Model.ChapterHeading)', @(SignInManager.IsSignedIn(User) ? "true" : "false"))">
-    <!-- Navigation Breadcrumbs -->
-    <div class="bible-nav-container">
-        <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">
-            <ol class="breadcrumb-list">
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-button home-button" href="#" x-on:click.prevent="searchMenuVisible = true; searchView = 'books';">📖 Books</a>
-                </li>
-                <li class="breadcrumb-separator" aria-hidden="true">›</li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-button" href="#" x-on:click.prevent="searchMenuVisible = true; selectSearchBook('@Model.BookAbbr', '@bookName')">@bookName</a>
-                </li>
-                <li class="breadcrumb-separator" aria-hidden="true">›</li>
-                <li class="breadcrumb-item">
-                    <span class="breadcrumb-button current" style="cursor: pointer;" x-on:click="searchMenuVisible = true; selectSearchBook('@Model.BookAbbr', '@bookName').then(() => selectSearchChapter(@Model.Chapter));">Chapter @Model.Chapter</span>
-                </li>
-            </ol>
-        </nav>
-    </div>
+<style>
+    .custom-dict-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    .dict-tab-btn {
+        flex: 1 1 auto;
+        padding: 10px 12px;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .dict-tab-btn:hover {
+        color: var(--primary);
+        background: var(--bg-card-hover);
+    }
+    .dict-tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+        font-weight: 600;
+    }
+    .brand-text-responsive {
+        font-size: 1.15rem;
+        display: none;
+    }
+    @@media (min-width: 1024px) {
+        .brand-text-responsive {
+            display: block;
+        }
+    }
+</style>
 
-    <!-- Chapter Heading & Navigation Controls -->
-    <div class="read-controls-bar">
-        <div class="chapter-header-group" style="display: flex; align-items: center; gap: 1rem;">
+<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter, '@Html.Raw(Model.ChapterHeading)', @(SignInManager.IsSignedIn(User) ? "true" : "false"))">
+    <!-- Unified Custom Header -->
+    <header class="app-header custom-read-header" style="justify-content: space-between; padding: 0 1.5rem; border-bottom: 1px solid var(--border-color);">
+        <!-- Left: Chapter Nav -->
+        <div class="header-left chapter-header-group" style="display: flex; align-items: center; gap: 0.75rem; flex: 1;">
             @if (Model.HasPreviousChapter)
             {
                 <a class="btn-chapter-nav btn-sm" 
                    href="@Url.Action("Read", new { bookAbbr = Model.PreviousChapterBookAbbr, chapter = Model.PreviousChapterNumber })"
-                   title="Previous Chapter">
+                   title="Previous Chapter" style="padding: 0.4rem 0.75rem;">
                     <i class="fas fa-chevron-left"></i>
                 </a>
             }
             
-            <h2 class="read-heading" style="margin: 0;">@Model.ChapterHeading</h2>
+            <h2 class="read-heading" style="margin: 0; font-size: 1.25rem;">@Model.ChapterHeading</h2>
             
             @if (Model.HasNextChapter)
             {
                 <a class="btn-chapter-nav btn-sm" 
                    href="@Url.Action("Read", new { bookAbbr = Model.NextChapterBookAbbr, chapter = Model.NextChapterNumber })"
-                   title="Next Chapter">
+                   title="Next Chapter" style="padding: 0.4rem 0.75rem;">
                     <i class="fas fa-chevron-right"></i>
                 </a>
             }
         </div>
-        
-        <div class="read-nav-actions">
-            <!-- Dictionary/Strong's Sidebar Toggle -->
+
+        <!-- Center: Logo + Breadcrumb -->
+        <div class="header-center" style="display: flex; align-items: center; justify-content: center; gap: 1rem; flex: 2;">
+            <a asp-area="" asp-controller="Home" asp-action="Index" class="brand-link" style="text-decoration: none;">
+                <div class="brand-icon" style="width: 30px; height: 30px; font-size: 1rem;">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <span class="brand-text brand-text-responsive">SimpleBible</span>
+            </a>
+            
+            <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb" style="width: auto; padding: 0;">
+                <ol class="breadcrumb-list" style="margin: 0; padding: 0;">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-button home-button" href="#" x-on:click.prevent="searchMenuVisible = true; searchView = 'books';" style="padding: 0.2rem 0.5rem;">📖 Books</a>
+                    </li>
+                    <li class="breadcrumb-separator" aria-hidden="true" style="margin: 0 2px;">›</li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-button" href="#" x-on:click.prevent="searchMenuVisible = true; selectSearchBook('@Model.BookAbbr', '@bookName')" style="padding: 0.2rem 0.5rem;">@bookName</a>
+                    </li>
+                    <li class="breadcrumb-separator" aria-hidden="true" style="margin: 0 2px;">›</li>
+                    <li class="breadcrumb-item">
+                        <span class="breadcrumb-button current" style="cursor: pointer; padding: 0.2rem 0.5rem;" x-on:click="searchMenuVisible = true; selectSearchBook('@Model.BookAbbr', '@bookName').then(() => selectSearchChapter(@Model.Chapter));">Ch @Model.Chapter</span>
+                    </li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Right: Dict Toggle + Gear Menu -->
+        <div class="header-right" style="display: flex; align-items: center; gap: 0.75rem; flex: 1; justify-content: flex-end;">
             <button class="btn-dict-toggle" 
                     x-bind:class="{ 'active': !fullbible }" 
                     x-on:click="fullbible = !fullbible"
-                    title="Toggle Right Sidebar"
-                    style="padding: 0.5rem; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 6px;">
-                <i class="fas" x-bind:class="fullbible ? 'fa-columns' : 'fa-times'"></i>
+                    title="Toggle Dictionary"
+                    style="padding: 0.5rem; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%;">
+                <i class="fas" x-bind:class="fullbible ? 'fa-book' : 'fa-times'"></i>
+            </button>
+            <button x-on:click="$dispatch('open-settings')" class="theme-toggle" aria-label="Open settings">
+                <i class="fas fa-cog"></i>
             </button>
         </div>
-    </div>
+    </header>
 
     <!-- Text reading pane & sidebar -->
     <div id="bible-content" class="bible-read">
@@ -194,21 +243,15 @@
         </div>
         
         <div id="bible-right" x-show="!fullbible" x-transition x-cloak style="display: flex; flex-direction: column;">
-            <div class="search-sidebar-header">
-                <h3>Dictionary</h3>
-                <button class="btn-close-sidebar" x-on:click="fullbible = true">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
+
             <!-- Main Sidebar Tabs (Definition, Occurrences, Usage, Synonyms, Insight) -->
-            <div class="sidebar-main-tabs" style="display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); flex-wrap: wrap;">
-                <button class="btn btn-link" :class="sidebarTab === 'definition' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'definition'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Definition</button>
-                <button class="btn btn-link" :class="sidebarTab === 'occurrences' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'occurrences'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Occurrences</button>
-                <button class="btn btn-link" :class="sidebarTab === 'usage' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'usage'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Usage</button>
-                <button class="btn btn-link" :class="sidebarTab === 'synonyms' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'synonyms'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Synonyms</button>
-                <button class="btn btn-link" :class="sidebarTab === 'insight' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'insight'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Insight</button>
-                <button class="btn btn-link" :class="sidebarTab === 'notes' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'notes'; loadChapterNotes();" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;" id="notes-tab-btn">
+            <div class="sidebar-main-tabs custom-dict-tabs" style="display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;">
+                <button class="dict-tab-btn" :class="sidebarTab === 'definition' ? 'active' : ''" x-on:click="sidebarTab = 'definition'">Definition</button>
+                <button class="dict-tab-btn" :class="sidebarTab === 'occurrences' ? 'active' : ''" x-on:click="sidebarTab = 'occurrences'">Occurrences</button>
+                <button class="dict-tab-btn" :class="sidebarTab === 'usage' ? 'active' : ''" x-on:click="sidebarTab = 'usage'">Usage</button>
+                <button class="dict-tab-btn" :class="sidebarTab === 'synonyms' ? 'active' : ''" x-on:click="sidebarTab = 'synonyms'">Synonyms</button>
+                <button class="dict-tab-btn" :class="sidebarTab === 'insight' ? 'active' : ''" x-on:click="sidebarTab = 'insight'">Insight</button>
+                <button class="dict-tab-btn" :class="sidebarTab === 'notes' ? 'active' : ''" x-on:click="sidebarTab = 'notes'; loadChapterNotes();" id="notes-tab-btn">
                     <i class="fas fa-sticky-note" style="margin-right:3px;"></i>Notes
                     <span class="notes-count-badge" x-show="chapterNotesCount > 0" x-text="chapterNotesCount" style="font-size:0.7rem; background:var(--primary); color:#fff; border-radius:999px; padding:1px 5px; margin-left:2px;"></span>
                 </button>

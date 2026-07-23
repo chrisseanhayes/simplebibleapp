@@ -64,55 +64,86 @@
     }
 }">
     <div class="app-layout">
-        <header class="app-header">
-            <div class="header-left">
-                <a asp-area="" asp-controller="Home" asp-action="Index" class="brand-link">
-                    <div class="brand-icon">
-                        <i class="fas fa-book-open"></i>
+        @if (ViewBag.UseCustomHeader != true)
+        {
+            <header class="app-header">
+                <div class="header-left">
+                    <a asp-area="" asp-controller="Home" asp-action="Index" class="brand-link">
+                        <div class="brand-icon">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <span class="brand-text">SimpleBible</span>
+                    </a>
+                </div>
+                
+                <div class="header-right">
+                    <div class="action-buttons">
+                        <!-- Gear Icon Toggle -->
+                        <button x-on:click="$dispatch('open-settings')" class="theme-toggle" aria-label="Open settings">
+                            <i class="fas fa-cog"></i>
+                        </button>
                     </div>
-                    <span class="brand-text">SimpleBible</span>
-                </a>
-            </div>
-            
-            <div class="header-right">
-                <div class="action-buttons">
-                    <!-- Theme Toggle -->
-                    <button x-on:click="toggleTheme()" class="theme-toggle" aria-label="Toggle dark mode">
-                        <i class="fas" x-bind:class="dark ? 'fa-sun' : 'fa-moon'"></i>
+                </div>
+            </header>
+        }
+
+        <!-- Slideout Menu -->
+        <div x-data="{ settingsMenuOpen: false }" x-on:open-settings.window="settingsMenuOpen = true">
+            <div x-show="settingsMenuOpen" class="settings-slideout" style="display: none; position: fixed; top: 0; right: 0; width: 320px; height: 100vh; background: var(--bg-card); box-shadow: var(--shadow-lg); z-index: 1050; flex-direction: column; padding: 1.5rem; border-left: 1px solid var(--border-color);" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="transform translate-x-full" x-transition:enter-end="transform translate-x-0" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="transform translate-x-0" x-transition:leave-end="transform translate-x-full" x-cloak>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3 style="margin: 0; font-family: var(--font-outfit); font-weight: 600;">Settings</h3>
+                    <button x-on:click="settingsMenuOpen = false" style="background: none; border: none; font-size: 1.25rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
+                        <i class="fas fa-times"></i>
                     </button>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Theme Toggle -->
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Appearance</div>
+                        <button x-on:click="toggleTheme()" class="btn btn-light" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-card-hover); color: var(--text-primary); text-align: left; transition: all 0.2s ease; cursor: pointer;">
+                            <span style="font-weight: 500;"><i class="fas" x-bind:class="dark ? 'fa-sun' : 'fa-moon'" style="margin-right: 10px; color: var(--primary);"></i> Theme</span>
+                            <span x-text="dark ? 'Dark' : 'Light'" style="font-size: 0.9rem; color: var(--text-secondary);"></span>
+                        </button>
+                    </div>
 
                     <!-- Auth Controls -->
-                    @if (SignInManager.IsSignedIn(User))
-                    {
-                        <div class="auth-user-block">
-                            <span class="auth-username">
-                                <i class="fas fa-user-circle"></i>
-                                @User.Identity.Name
-                            </span>
-                            <form asp-controller="Account" asp-action="Logout" method="post" style="display:inline;">
-                                <button type="submit" class="auth-logout-btn" title="Sign out">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    <span>Sign out</span>
-                                </button>
-                            </form>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="auth-links">
-                            <a asp-controller="Account" asp-action="Login" class="auth-header-link auth-header-link--login">
-                                <i class="fas fa-sign-in-alt"></i>
-                                Sign in
-                            </a>
-                            <a asp-controller="Account" asp-action="Register" class="auth-header-link auth-header-link--register">
-                                <i class="fas fa-user-plus"></i>
-                                Register
-                            </a>
-                        </div>
-                    }
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Account</div>
+                        @if (SignInManager.IsSignedIn(User))
+                        {
+                            <div class="auth-user-block" style="display: flex; flex-direction: column; gap: 0.75rem; background: var(--bg-card-hover); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                <span class="auth-username" style="display: flex; align-items: center; gap: 10px; color: var(--text-primary); font-weight: 600; font-size: 1.05rem;">
+                                    <i class="fas fa-user-circle" style="font-size: 1.5rem; color: var(--primary);"></i>
+                                    @User.Identity.Name
+                                </span>
+                                <form asp-controller="Account" asp-action="Logout" method="post" style="margin: 0; margin-top: 0.5rem;">
+                                    <button type="submit" class="btn btn-outline-danger" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0.6rem;">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                        <span>Sign out</span>
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="auth-links" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <a asp-controller="Account" asp-action="Login" class="btn btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0.75rem; font-weight: 500;">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                    Sign in
+                                </a>
+                                <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0.75rem; font-weight: 500;">
+                                    <i class="fas fa-user-plus"></i>
+                                    Create Account
+                                </a>
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
-        </header>
+            <!-- Overlay -->
+            <div x-show="settingsMenuOpen" x-on:click="settingsMenuOpen = false" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 1040;" x-transition.opacity x-cloak></div>
+        </div>
 
         <main class="app-main">
             @RenderBody()
