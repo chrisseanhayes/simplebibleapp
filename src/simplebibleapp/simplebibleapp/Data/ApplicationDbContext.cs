@@ -11,9 +11,20 @@ namespace simplebibleapp.Data
         {
         }
 
+        public DbSet<UserNote> UserNotes { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            builder.Entity<UserNote>(entity =>
+            {
+                entity.HasIndex(n => new { n.UserId, n.BookAbbr, n.Chapter, n.Verse });
+                entity.HasOne(n => n.User)
+                      .WithMany()
+                      .HasForeignKey(n => n.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }

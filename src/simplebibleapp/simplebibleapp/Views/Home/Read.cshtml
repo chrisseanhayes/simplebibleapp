@@ -1,4 +1,6 @@
 @using simplebibleapp.xmlbible
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<simplebibleapp.Models.ApplicationUser> SignInManager
 @model ReadViewModel
 @{
     ViewBag.Title = Model.ChapterHeading;
@@ -17,7 +19,7 @@
     };
 }
 
-<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter, '@Html.Raw(Model.ChapterHeading)')">
+<div class="read-app-container" x-data="readApp" x-init="init('@Model.BookAbbr', @Model.Chapter, '@Html.Raw(Model.ChapterHeading)', @(SignInManager.IsSignedIn(User) ? "true" : "false"))">
     <!-- Navigation Breadcrumbs -->
     <div class="bible-nav-container">
         <nav class="bible-breadcrumb" aria-label="Bible navigation breadcrumb">
@@ -206,6 +208,10 @@
                 <button class="btn btn-link" :class="sidebarTab === 'usage' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'usage'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Usage</button>
                 <button class="btn btn-link" :class="sidebarTab === 'synonyms' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'synonyms'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Synonyms</button>
                 <button class="btn btn-link" :class="sidebarTab === 'insight' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'insight'" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;">Insight</button>
+                <button class="btn btn-link" :class="sidebarTab === 'notes' ? 'active font-weight-bold' : ''" x-on:click="sidebarTab = 'notes'; loadChapterNotes();" style="flex: 1 1 auto; padding: 8px; color: var(--text-primary); text-decoration: none;" id="notes-tab-btn">
+                    <i class="fas fa-sticky-note" style="margin-right:3px;"></i>Notes
+                    <span class="notes-count-badge" x-show="chapterNotesCount > 0" x-text="chapterNotesCount" style="font-size:0.7rem; background:var(--primary); color:#fff; border-radius:999px; padding:1px 5px; margin-left:2px;"></span>
+                </button>
             </div>
 
             <div class="bible-right-content" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
@@ -376,6 +382,83 @@
 
                         <div x-show="!insightLoading && insightData">
                             <div class="insight-content" x-html="insightData?.renderedHtml"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Tab -->
+                <div x-show="sidebarTab === 'notes'" style="padding: 10px; display: flex; flex-direction: column; gap: 12px;">
+
+                    <!-- Not logged in -->
+                    <div x-show="!isAuthenticated" class="notes-auth-prompt">
+                        <i class="fas fa-lock" style="font-size:1.5rem; color:var(--text-muted); margin-bottom:8px;"></i>
+                        <p style="color:var(--text-muted); font-size:0.9rem; margin:0 0 10px;">Sign in to save personal study notes.</p>
+                        <a href="/Account/Login" class="btn btn-primary btn-sm">Sign In</a>
+                    </div>
+
+                    <!-- Logged in: inline note editor -->
+                    <div x-show="isAuthenticated">
+
+                        <!-- Active note editor -->
+                        <div x-show="noteEditorVerse !== null" class="note-editor-card" id="note-editor-panel">
+                            <div class="note-editor-header">
+                                <span>
+                                    <i class="fas fa-pen-nib"></i>
+                                    <span x-text="'@Model.ChapterHeading:' + noteEditorVerse"></span>
+                                </span>
+                                <button class="btn-close-note" x-on:click="closeNoteEditor()" title="Close editor">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <textarea id="note-textarea"
+                                      class="note-textarea"
+                                      x-model="noteEditorText"
+                                      placeholder="Write your study notes here…"
+                                      rows="5"
+                                      x-on:keydown.ctrl.enter.prevent="saveNote()"
+                                      x-on:keydown.meta.enter.prevent="saveNote()"></textarea>
+                            <div class="note-editor-actions">
+                                <button class="btn btn-primary btn-sm" x-on:click="saveNote()" :disabled="noteSaving">
+                                    <i class="fas" :class="noteSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                                    <span x-text="noteSaving ? 'Saving…' : 'Save'"></span>
+                                </button>
+                                <button class="btn btn-sm btn-light" x-on:click="closeNoteEditor()" :disabled="noteSaving">Cancel</button>
+                                <button class="btn btn-sm btn-danger" x-show="noteEditorVerse !== null && chapterNotes[noteEditorVerse]" x-on:click="deleteNote()" :disabled="noteSaving" style="margin-left:auto;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <div x-show="noteSaveError" class="note-save-error" x-text="noteSaveError"></div>
+                        </div>
+
+                        <!-- Chapter notes list -->
+                        <div class="notes-chapter-list">
+                            <div class="notes-list-header">
+                                <span>Notes in this chapter</span>
+                                <span class="notes-list-count" x-text="chapterNotesCount + ' note' + (chapterNotesCount === 1 ? '' : 's')"></span>
+                            </div>
+
+                            <!-- Loading -->
+                            <div x-show="notesLoading" class="text-center py-3">
+                                <i class="fas fa-spinner fa-spin text-muted"></i>
+                            </div>
+
+                            <!-- Empty state -->
+                            <div x-show="!notesLoading && chapterNotesCount === 0" class="notes-empty-state">
+                                <i class="fas fa-feather-alt"></i>
+                                <p>No notes yet for this chapter.</p>
+                                <p style="font-size:0.8rem; color:var(--text-muted);">Click any verse number in the text, then open this tab.</p>
+                            </div>
+
+                            <!-- Notes list -->
+                            <template x-for="(note, verse) in chapterNotes" :key="verse">
+                                <div class="note-list-item" x-on:click="openNoteEditorForVerse(parseInt(verse))">
+                                    <div class="note-list-verse">
+                                        <span x-text="'v.' + verse"></span>
+                                    </div>
+                                    <div class="note-list-text" x-text="note.text"></div>
+                                    <div class="note-list-meta" x-text="formatNoteDate(note.updatedAt)"></div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>

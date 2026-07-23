@@ -207,6 +207,7 @@ namespace simplebibleapp
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapControllers(); // attribute-routed API controllers (e.g. NotesController)
                 endpoints.MapControllerRoute(
                     "default",
                     "{controller=Home}/{action=Index}/{id?}");

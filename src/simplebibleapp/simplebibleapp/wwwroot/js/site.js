@@ -47,6 +47,15 @@ document.addEventListener('alpine:init', () => {
         insightActiveRef: '',
         insightCache: {},
 
+        // ── User Notes state ─────────────────────────────────────────────────
+        isAuthenticated: false,
+        chapterNotes: {},        // { [verse]: { text, updatedAt, id } }
+        notesLoading: false,
+        noteEditorVerse: null,   // Which verse is currently open in the editor
+        noteEditorText: '',
+        noteSaving: false,
+        noteSaveError: null,
+
         getSavedLemma() {
             try {
                 return sessionStorage.getItem('selectedLemma');
@@ -67,10 +76,11 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        init(bookAbbr, chapter, chapterHeading) {
+        init(bookAbbr, chapter, chapterHeading, isAuthenticated) {
             this.bookAbbr = bookAbbr;
             this.chapter = chapter;
             this.chapterHeading = chapterHeading || '';
+            this.isAuthenticated = !!isAuthenticated;
 
             // Setup event delegation on the .def-tab-content container for dynamic HTML elements
             const defsContainer = document.querySelector('.def-tab-content');
@@ -163,6 +173,11 @@ document.addEventListener('alpine:init', () => {
                     this.synonymConnectionId = this.synonymHub.connectionId;
                     console.log("SignalR connected with ID:", this.synonymConnectionId);
                 }).catch(err => console.error("SignalR Connection Error: ", err));
+            }
+
+            // Load notes for this chapter if authenticated
+            if (this.isAuthenticated) {
+                this.loadChapterNotes();
             }
         },
 
@@ -573,6 +588,141 @@ document.addEventListener('alpine:init', () => {
                 this.insightError = 'Error submitting request: ' + err.message;
                 this.insightLoading = false;
                 console.error('loadVerseInsight error:', err);
+            }
+        },
+
+        // ── User Notes ───────────────────────────────────────────────────────
+
+        get chapterNotesCount() {
+            return Object.keys(this.chapterNotes).length;
+        },
+
+        /** Load all notes for the current chapter from the server. */
+        async loadChapterNotes() {
+            if (!this.isAuthenticated) return;
+            this.notesLoading = true;
+            try {
+                const params = new URLSearchParams({ bookAbbr: this.bookAbbr, chapter: this.chapter });
+                const resp = await fetch('/api/Notes?' + params.toString());
+                if (resp.ok) {
+                    const notes = await resp.json();
+                    const map = {};
+                    notes.forEach(n => {
+                        map[n.verse] = { id: n.id, text: n.noteText, updatedAt: n.updatedAt };
+                    });
+                    this.chapterNotes = map;
+                } else if (resp.status === 401) {
+                    this.isAuthenticated = false;
+                }
+            } catch (err) {
+                console.error('Error loading chapter notes:', err);
+            } finally {
+                this.notesLoading = false;
+            }
+        },
+
+        /** Open the note editor for the given verse number (navigates to Notes tab). */
+        openNoteEditor(verse) {
+            if (!this.isAuthenticated) return;
+            this.fullbible = false;
+            this.sidebarTab = 'notes';
+            this.noteEditorVerse = verse;
+            this.noteEditorText = this.chapterNotes[verse]?.text || '';
+            this.noteSaveError = null;
+            // Focus textarea after Alpine renders
+            this.$nextTick(() => {
+                const ta = document.getElementById('note-textarea');
+                if (ta) { ta.focus(); ta.select(); }
+            });
+        },
+
+        /** Open editor for a verse from the notes list. */
+        openNoteEditorForVerse(verse) {
+            this.openNoteEditor(verse);
+        },
+
+        closeNoteEditor() {
+            this.noteEditorVerse = null;
+            this.noteEditorText = '';
+            this.noteSaveError = null;
+        },
+
+        /** Save (upsert) the current note. */
+        async saveNote() {
+            if (this.noteEditorVerse === null) return;
+            if (this.noteSaving) return;
+            this.noteSaving = true;
+            this.noteSaveError = null;
+            try {
+                const resp = await fetch('/api/Notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bookAbbr: this.bookAbbr,
+                        chapter: this.chapter,
+                        verse: this.noteEditorVerse,
+                        noteText: this.noteEditorText
+                    })
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    if (result.deleted) {
+                        delete this.chapterNotes[this.noteEditorVerse];
+                        // Force reactivity
+                        this.chapterNotes = { ...this.chapterNotes };
+                    } else {
+                        this.chapterNotes = {
+                            ...this.chapterNotes,
+                            [result.verse]: { id: result.id, text: result.noteText, updatedAt: result.updatedAt }
+                        };
+                    }
+                    this.closeNoteEditor();
+                } else if (resp.status === 401) {
+                    this.noteSaveError = 'You must be signed in to save notes.';
+                } else {
+                    const err = await resp.json().catch(() => ({}));
+                    this.noteSaveError = err.error || 'Failed to save note.';
+                }
+            } catch (err) {
+                this.noteSaveError = 'Network error — could not save note.';
+                console.error('saveNote error:', err);
+            } finally {
+                this.noteSaving = false;
+            }
+        },
+
+        /** Delete the note for the currently-open verse. */
+        async deleteNote() {
+            if (this.noteEditorVerse === null) return;
+            const existing = this.chapterNotes[this.noteEditorVerse];
+            if (!existing) { this.closeNoteEditor(); return; }
+            if (this.noteSaving) return;
+            this.noteSaving = true;
+            this.noteSaveError = null;
+            try {
+                const resp = await fetch('/api/Notes/' + existing.id, { method: 'DELETE' });
+                if (resp.ok) {
+                    delete this.chapterNotes[this.noteEditorVerse];
+                    this.chapterNotes = { ...this.chapterNotes };
+                    this.closeNoteEditor();
+                } else {
+                    this.noteSaveError = 'Failed to delete note.';
+                }
+            } catch (err) {
+                this.noteSaveError = 'Network error.';
+            } finally {
+                this.noteSaving = false;
+            }
+        },
+
+        /** Format a UTC ISO date string for the note metadata line. */
+        formatNoteDate(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const d = new Date(dateStr);
+                return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            } catch (e) {
+                return '';
             }
         }
     }));

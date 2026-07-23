@@ -7,7 +7,13 @@
 @{
     Func<BeginVerseNode, IHtmlContent> renderBeginNode =
         @<em class="verse-number" id="vs-@item.Verse">
-    <a href="#" x-on:click.prevent="loadVerseInsight('@(Model.ChapterHeading):@(item.Verse)')" style="text-decoration: none; cursor: pointer;" title="View Synopsis">@item.Verse.</a>
+    <a href="#" x-on:click.prevent="loadVerseInsight('@(Model.ChapterHeading):@(item.Verse)')" style="text-decoration: none; cursor: pointer;" title="View Synopsis">@item.Verse.</a><button
+        class="verse-note-btn"
+        :class="{ 'has-note': chapterNotes[@item.Verse] }"
+        x-on:click.prevent.stop="openNoteEditor(@item.Verse)"
+        title="Add / edit note for verse @item.Verse"
+        aria-label="Note for verse @item.Verse"
+    ><i class="fas fa-sticky-note"></i></button>
     </em>;
 
 Func<EndVerseNode, IHtmlContent> renderEndNode = @<br/>;

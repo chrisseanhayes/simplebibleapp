@@ -2095,3 +2095,261 @@ em {
         display: none;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   USER NOTES
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Verse-level note button inline with verse number */
+.verse-note-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 3px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: var(--transition-fast);
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.verse-number:hover .verse-note-btn,
+.verse-note-btn:focus {
+    opacity: 1;
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* When this verse already has a note: always visible, amber accent */
+.verse-note-btn.has-note {
+    opacity: 1;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.10);
+}
+
+.verse-note-btn.has-note:hover {
+    background: rgba(245, 158, 11, 0.20);
+    color: #d97706;
+}
+
+/* ── Note editor card ────────────────────────────────────────────────── */
+.note-editor-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    animation: slideDown 0.15s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.note-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #f59e0b15, #d97706 08%);
+    background: var(--bg-card-hover);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    gap: 8px;
+}
+
+.note-editor-header i {
+    color: #f59e0b;
+    margin-right: 4px;
+}
+
+.btn-close-note {
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    transition: var(--transition-fast);
+}
+
+.btn-close-note:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.note-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    resize: vertical;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    padding: 12px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    min-height: 100px;
+    outline: none;
+    transition: background 0.2s;
+}
+
+.note-textarea:focus {
+    background: var(--bg-app);
+}
+
+.note-editor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+}
+
+.note-save-error {
+    padding: 6px 12px 8px;
+    font-size: 0.8rem;
+    color: #ef4444;
+}
+
+/* ── Notes chapter list ──────────────────────────────────────────────── */
+.notes-chapter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.notes-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 6px 0 6px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 4px;
+}
+
+.notes-list-count {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.notes-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 24px 12px;
+    color: var(--text-muted);
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.notes-empty-state i {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+    color: var(--border-color);
+}
+
+.note-list-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0 8px;
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.note-list-item:hover {
+    background: var(--primary-light);
+}
+
+.note-list-verse {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+    align-self: start;
+    margin-top: 2px;
+}
+
+.note-list-text {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 0.84rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.note-list-meta {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ── Auth prompt ─────────────────────────────────────────────────────── */
+.notes-auth-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+    text-align: center;
+    gap: 4px;
+}
+
+/* ── Dark theme overrides ─────────────────────────────────────────────── */
+.dark-theme .note-editor-card,
+.dark-theme .note-textarea {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.dark-theme .note-textarea:focus {
+    background: var(--bg-app);
+}
+
+.dark-theme .verse-note-btn {
+    color: var(--text-muted);
+}
+
+.dark-theme .verse-note-btn.has-note {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+}
+
