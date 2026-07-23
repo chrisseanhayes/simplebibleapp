@@ -182,7 +182,7 @@ document.addEventListener('alpine:init', () => {
                     const entry = this.chapterNotes[n.verse] || { personal: null, aiNotes: [] };
                     entry.aiNotes = [
                         ...entry.aiNotes,
-                        { id: n.id, prompt: n.prompt, text: n.noteText, updatedAt: n.updatedAt, renderedHtml: payload.renderedHtml }
+                        { id: n.id, prompt: n.prompt, text: n.text, updatedAt: n.updatedAt, renderedHtml: payload.renderedHtml }
                     ];
                     this.chapterNotes = { ...this.chapterNotes, [n.verse]: entry };
                 });
@@ -641,9 +641,9 @@ document.addEventListener('alpine:init', () => {
                     notes.forEach(n => {
                         if (!map[n.verse]) map[n.verse] = { personal: null, aiNotes: [] };
                         if (n.noteType === 'Personal') {
-                            map[n.verse].personal = { id: n.id, text: n.noteText, updatedAt: n.updatedAt };
+                            map[n.verse].personal = { id: n.id, text: n.text, updatedAt: n.updatedAt };
                         } else {
-                            map[n.verse].aiNotes.push({ id: n.id, prompt: n.prompt, text: n.noteText, updatedAt: n.updatedAt, renderedHtml: null });
+                            map[n.verse].aiNotes.push({ id: n.id, prompt: n.prompt, text: n.text, updatedAt: n.updatedAt, renderedHtml: n.renderedHtml });
                         }
                     });
                     this.chapterNotes = map;

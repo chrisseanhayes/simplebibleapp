@@ -50,7 +50,8 @@ namespace simplebibleapp.Controllers
             string NoteText,
             string Prompt,
             string NoteType,
-            DateTime UpdatedAt);
+            DateTime UpdatedAt,
+            string RenderedHtml = null);
 
         public record UpsertNoteRequest(string BookAbbr, int Chapter, int Verse, string NoteText);
 
@@ -72,11 +73,16 @@ namespace simplebibleapp.Controllers
             if (string.IsNullOrWhiteSpace(bookAbbr) || chapter <= 0)
                 return BadRequest(new { error = "bookAbbr and chapter are required." });
 
-            var notes = await _db.UserNotes
+            var notesFromDb = await _db.UserNotes
                 .Where(n => n.UserId == userId && n.BookAbbr == bookAbbr && n.Chapter == chapter)
                 .OrderBy(n => n.Verse).ThenBy(n => n.NoteType).ThenBy(n => n.CreatedAt)
-                .Select(n => new NoteDto(n.Id, n.BookAbbr, n.Chapter, n.Verse, n.NoteText, n.Prompt, n.NoteType.ToString(), n.UpdatedAt))
                 .ToListAsync();
+
+            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            var notes = notesFromDb.Select(n => new NoteDto(
+                n.Id, n.BookAbbr, n.Chapter, n.Verse, n.NoteText, n.Prompt, n.NoteType.ToString(), n.UpdatedAt,
+                n.NoteType == NoteType.AiInsight ? Markdown.ToHtml(n.NoteText, pipeline) : null
+            )).ToList();
 
             return Ok(notes);
         }
@@ -88,11 +94,16 @@ namespace simplebibleapp.Controllers
             var userId = _userManager.GetUserId(User);
             if (userId == null) return Unauthorized();
 
-            var notes = await _db.UserNotes
+            var notesFromDb = await _db.UserNotes
                 .Where(n => n.UserId == userId)
                 .OrderByDescending(n => n.UpdatedAt)
-                .Select(n => new NoteDto(n.Id, n.BookAbbr, n.Chapter, n.Verse, n.NoteText, n.Prompt, n.NoteType.ToString(), n.UpdatedAt))
                 .ToListAsync();
+
+            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            var notes = notesFromDb.Select(n => new NoteDto(
+                n.Id, n.BookAbbr, n.Chapter, n.Verse, n.NoteText, n.Prompt, n.NoteType.ToString(), n.UpdatedAt,
+                n.NoteType == NoteType.AiInsight ? Markdown.ToHtml(n.NoteText, pipeline) : null
+            )).ToList();
 
             return Ok(notes);
         }
@@ -127,7 +138,7 @@ namespace simplebibleapp.Controllers
                 existing.NoteText = req.NoteText;
                 existing.UpdatedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync();
-                return Ok(new NoteDto(existing.Id, existing.BookAbbr, existing.Chapter, existing.Verse, existing.NoteText, null, "Personal", existing.UpdatedAt));
+                return Ok(new NoteDto(existing.Id, existing.BookAbbr, existing.Chapter, existing.Verse, existing.NoteText, null, "Personal", existing.UpdatedAt, null));
             }
 
             if (string.IsNullOrWhiteSpace(req.NoteText))
@@ -147,7 +158,7 @@ namespace simplebibleapp.Controllers
             _db.UserNotes.Add(note);
             await _db.SaveChangesAsync();
 
-            return Ok(new NoteDto(note.Id, note.BookAbbr, note.Chapter, note.Verse, note.NoteText, null, "Personal", note.UpdatedAt));
+            return Ok(new NoteDto(note.Id, note.BookAbbr, note.Chapter, note.Verse, note.NoteText, null, "Personal", note.UpdatedAt, null));
         }
 
         // ── POST /api/Notes/AskAi ────────────────────────────────────────────
@@ -206,7 +217,7 @@ namespace simplebibleapp.Controllers
                     db.UserNotes.Add(note);
                     await db.SaveChangesAsync();
 
-                    var dto = new NoteDto(note.Id, note.BookAbbr, note.Chapter, note.Verse, markdown, req.Question, "AiInsight", note.UpdatedAt);
+                    var dto = new NoteDto(note.Id, note.BookAbbr, note.Chapter, note.Verse, markdown, req.Question, "AiInsight", note.UpdatedAt, html);
 
                     await hubContext.Clients.Client(req.ConnectionId)
                         .SendAsync("ReceiveAiNote", new
