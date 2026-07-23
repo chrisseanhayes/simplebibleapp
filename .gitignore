@@ -40,3 +40,5 @@ msbuild.wrn
 # Antigravity CLI Credentials
 .gemini/
 .gemini
+
+dataplane/

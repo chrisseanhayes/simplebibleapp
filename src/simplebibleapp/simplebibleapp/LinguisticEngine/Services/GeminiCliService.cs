@@ -52,9 +52,10 @@ namespace simplebibleapp.LinguisticEngine.Services
                 StandardErrorEncoding = Encoding.UTF8,
             };
 
-            // agy -p <prompt>  — non-interactive print mode, response goes straight to stdout
             startInfo.ArgumentList.Add("--model");
-            startInfo.ArgumentList.Add("flash");
+            startInfo.ArgumentList.Add("gemini-3.6-flash");
+            startInfo.ArgumentList.Add("--effort");
+            startInfo.ArgumentList.Add("low");
             startInfo.ArgumentList.Add("-p");
             startInfo.ArgumentList.Add(prompt);
 

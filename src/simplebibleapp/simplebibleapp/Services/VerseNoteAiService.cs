@@ -55,7 +55,9 @@ namespace simplebibleapp.Services
             };
 
             startInfo.ArgumentList.Add("--model");
-            startInfo.ArgumentList.Add("flash");
+            startInfo.ArgumentList.Add("gemini-3.6-flash");
+            startInfo.ArgumentList.Add("--effort");
+            startInfo.ArgumentList.Add("low");
             startInfo.ArgumentList.Add("-p");
             startInfo.ArgumentList.Add(prompt);
 
